@@ -25,14 +25,14 @@ const SKILLS = [
 
 // Assets que vendo na Fab. "match" tenta achar a capa no ArtStation pelo título.
 const FAB_ASSETS = [
-  { title: "Viking Tankard", sub: "Stylized Hand-Painted Game Asset", match: "tankard", icon: "🍺" },
-  { title: "Low Poly Nature Pack", sub: "Árvores, rochas e props", match: "nature", icon: "🌳" },
-  { title: "Post-apocalyptic Melee Weapons Pack", sub: "Game Ready", match: "melee", icon: "🪓" },
-  { title: "Stylized Fantasy Keys Pack", sub: "Chaves de fantasia", match: "keys", icon: "🗝️" },
-  { title: "Stylized Potion Bottles Pack", sub: "Poções e frascos", match: "potion bottles", icon: "🧪" },
-  { title: "Adventure Complete Pack", sub: "Low Poly · Medieval estilizado", match: "adventure", icon: "🏰" },
-  { title: "PS1 Style Wooden Doors Pack", sub: "10 portas low poly", match: "doors", icon: "🚪" },
-  { title: "Stylized Crystal Pack", sub: "10 gemas de fantasia", match: "crystal", icon: "💎" },
+  { title: "Viking Tankard", sub: "Stylized Hand-Painted Game Asset", img: "assets/fab-viking-tankard.jpg", icon: "🍺" },
+  { title: "Low Poly Nature Pack", sub: "Árvores, rochas e props", img: "assets/fab-low-poly-nature.jpg", icon: "🌳" },
+  { title: "Post-apocalyptic Melee Weapons Pack", sub: "Game Ready", img: "assets/fab-melee-weapons.jpg", icon: "🪓" },
+  { title: "Stylized Fantasy Keys Pack", sub: "Chaves de fantasia", img: "assets/fab-fantasy-keys.jpg", icon: "🗝️" },
+  { title: "Stylized Potion Bottles Pack", sub: "Poções e frascos", img: "assets/fab-potion-bottles.jpg", icon: "🧪" },
+  { title: "Adventure Complete Pack", sub: "Low Poly · Medieval estilizado", img: "assets/fab-adventure-pack.jpg", icon: "🏰" },
+  { title: "PS1 Style Wooden Doors Pack", sub: "10 portas low poly", img: "assets/fab-ps1-doors.jpg", icon: "🚪" },
+  { title: "Stylized Crystal Pack", sub: "10 gemas de fantasia", img: "assets/fab-crystal-pack.jpg", icon: "💎" },
 ];
 
 // Plano B: se a API falhar, mostra estas artes (fixas) e o link do perfil.
@@ -131,37 +131,101 @@ function renderMore() {
 
 moreBtn.addEventListener("click", renderMore);
 
-async function loadArt() {
+/* Busca JSON com tempo limite, para a página nunca ficar presa esperando */
+async function fetchJson(url, ms = 7000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
   try {
-    const r = await fetch(`/api/artstation?user=${CONFIG.artstationUser}`);
-    if (!r.ok) throw new Error("API " + r.status);
-    const data = await r.json();
-    if (!data.projects || !data.projects.length) throw new Error("vazio");
-    projects = data.projects;
-    const stat = $("#stat-art");
-    if (stat) stat.textContent = data.total || projects.length;
-  } catch (err) {
-    console.warn("ArtStation indisponível, usando artes fixas:", err);
-    projects = FALLBACK_ART;
+    const r = await fetch(url, { signal: ctrl.signal });
+    if (!r.ok) throw new Error(url + " respondeu " + r.status);
+    return await r.json();
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+// Garante os campos que a galeria usa (a cópia fixa guarda só a miniatura quadrada)
+const normalize = (list) =>
+  list.map((p) => ({
+    ...p,
+    image: p.image || String(p.thumb || "").replace("/small_square/", "/medium/"),
+  }));
+
+async function loadArt() {
+  let total = 0;
+  // 1) ao vivo, pela função da Vercel  2) cópia fixa das 37 artes  3) 5 artes embutidas
+  try {
+    const data = await fetchJson(`/api/artstation?user=${CONFIG.artstationUser}`);
+    if (!data.projects || !data.projects.length) throw new Error("vazio");
+    projects = normalize(data.projects);
+    total = data.total || projects.length;
+  } catch (err) {
+    console.warn("API do ArtStation indisponível, usando a cópia fixa:", err);
+    try {
+      const snap = await fetchJson("data/artstation.json");
+      projects = normalize(snap.projects);
+      total = snap.total || projects.length;
+    } catch (err2) {
+      console.warn("Cópia fixa indisponível, usando artes embutidas:", err2);
+      projects = normalize(FALLBACK_ART);
+      total = projects.length;
+    }
+  }
+  const stat = $("#stat-art");
+  if (stat) stat.textContent = total;
   renderMore();
-  renderAssets();
 }
 
 /* ============================================================
-   Assets da Fab
+   Assets da Fab (imagens ficam em /assets, recortadas da loja)
    ============================================================ */
 $("#fab-name").textContent = CONFIG.fabName;
 $("#fab-link").href = CONFIG.fabUrl;
 
-function renderAssets() {
-  $("#assets-grid").innerHTML = FAB_ASSETS.map((a) => {
-    const art = projects.find((p) => p.title && p.title.toLowerCase().includes(a.match));
-    const img = art ? `<img src="${esc(art.image)}" alt="${esc(a.title)}" loading="lazy" onerror="this.remove()">` : a.icon;
-    return `<a class="asset reveal in" href="${esc(CONFIG.fabUrl)}" target="_blank" rel="noopener">
-      <div class="img">${img}</div>
-      <div class="info">${esc(a.title)}<small>${esc(a.sub)}</small></div></a>`;
-  }).join("");
+$("#assets-grid").innerHTML = FAB_ASSETS.map(
+  (a) => `<a class="asset reveal in" href="${esc(CONFIG.fabUrl)}" target="_blank" rel="noopener">
+    <div class="img"><img src="${esc(a.img)}" alt="${esc(a.title)}" loading="lazy" onerror="this.replaceWith(document.createTextNode('${a.icon}'))"></div>
+    <div class="info">${esc(a.title)}<small>${esc(a.sub)}</small></div></a>`
+).join("");
+
+/* ============================================================
+   Roblox: capturas de tela sempre atualizadas (via /api/roblox)
+   ============================================================ */
+function fillRoblox(card, game) {
+  const shots = (game && game.thumbnails) || [];
+  const name = card.dataset.name || "jogo no Roblox";
+  const hero = card.querySelector(".hero-shot img");
+  const thumbs = card.querySelector(".thumbs");
+  const heroIsLocal = card.dataset.hero === "local";
+  const rest = heroIsLocal ? shots : shots.slice(1);
+
+  if (!heroIsLocal) {
+    if (!shots.length) {            // sem imagens: esconde a coluna de mídia e deixa só o texto
+      card.querySelector(".p-media").remove();
+      card.classList.add("no-media");
+      return;
+    }
+    hero.alt = "Captura de " + name;
+    hero.src = shots[0];
+  }
+  if (thumbs) {
+    thumbs.innerHTML = rest.slice(0, 3).map(
+      (u, i) => `<img src="${esc(u)}" alt="Captura ${i + 2} de ${esc(name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+    ).join("");
+  }
+}
+
+async function loadRoblox() {
+  const cards = [...document.querySelectorAll("[data-place]")];
+  if (!cards.length) return;
+  let games = {};
+  try {
+    const data = await fetchJson("/api/roblox?places=" + cards.map((c) => c.dataset.place).join(","), 9000);
+    games = data.games || {};
+  } catch (err) {
+    console.warn("API do Roblox indisponível:", err);
+  }
+  cards.forEach((c) => fillRoblox(c, games[c.dataset.place]));
 }
 
 /* ============================================================
@@ -181,3 +245,4 @@ lb.addEventListener("click", (e) => { if (e.target !== lbImg) closeLb(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLb(); });
 
 loadArt();
+loadRoblox();

@@ -13,6 +13,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 body {
   font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -137,6 +138,9 @@ h2 { font-size: clamp(1.9rem, 4.6vw, 3.2rem); line-height: 1.1; letter-spacing: 
 .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
 .thumbs img { border-radius: 10px; aspect-ratio: 16 / 10; object-fit: cover; width: 100%; border: 1px solid var(--line); }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.thumbs:empty { display: none; }
+.project.no-media { grid-template-columns: 1fr; }
+.p-media .hero-shot:has(img:not([src])) { display: none; }
 
 /* mobile games */
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -159,7 +163,7 @@ h2 { font-size: clamp(1.9rem, 4.6vw, 3.2rem); line-height: 1.1; letter-spacing: 
 .assets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .asset { border-radius: 16px; overflow: hidden; background: var(--card); border: 1px solid var(--line); transition: transform 0.3s, border-color 0.3s; display: block; }
 .asset:hover { transform: translateY(-4px); border-color: rgba(139, 92, 246, 0.5); }
-.asset .img { aspect-ratio: 4 / 3; background: radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.35), transparent 60%), #0a0c10; display: grid; place-items: center; font-size: 2rem; overflow: hidden; }
+.asset .img { aspect-ratio: 16 / 9; background: radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.35), transparent 60%), #0a0c10; display: grid; place-items: center; font-size: 2rem; overflow: hidden; }
 .asset .img img { width: 100%; height: 100%; object-fit: cover; }
 .asset .info { padding: 12px 14px 14px; font-size: 0.9rem; line-height: 1.35; }
 .asset .info small { display: block; color: var(--muted); margin-top: 2px; font-size: 0.75rem; }

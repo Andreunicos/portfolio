@@ -11,6 +11,17 @@ const CONFIG = {
   // Resultado da 1-BIT JAM 15 (The God of Small Things). Deixe "" enquanto a votação está aberta.
   // Quando sair, escreva por exemplo "3º lugar geral" ou "1º lugar em Arte" e publique de novo.
   jamResult: "",
+
+  // ---- Topo do site (hero) ----
+  // Liga/desliga cada efeito. Com false, o site volta ao comportamento simples.
+  hero3d: true,   // modelo 3D que gira com o mouse/dedo (sem ele fica só a imagem estática)
+  lantern: true,  // "lanterna": a luz segue o cursor no topo do site
+  hud: true,      // barra de progresso com cristais por seção
+  // Seu modelo 3D (.glb exportado do Blender). Deixe "" para usar o cristal procedural.
+  // Exemplo: "models/hero.glb" (coloque o arquivo em public/models/).
+  heroModel: "",
+  // Descrição do modelo para leitores de tela (troque junto com o heroModel).
+  heroModelAlt: "",
 };
 
 // Nível de 1 a 5 (do currículo)
@@ -67,11 +78,13 @@ window.addEventListener("scroll", onScroll, { passive: true });
 burger.addEventListener("click", () => {
   const open = menu.classList.toggle("open");
   burger.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("menu-open", open);
 });
 menu.addEventListener("click", (e) => {
   if (e.target.tagName === "A") {
     menu.classList.remove("open");
     burger.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("menu-open");
   }
 });
 
@@ -257,6 +270,197 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLb();
   box.querySelector("span").textContent = `🏆 ${CONFIG.jamResult} na 1-BIT JAM 15.`;
   const badge = document.querySelector("#god-of-small-things .badge.live");
   if (badge) badge.textContent = "Resultado da jam";
+})();
+
+/* ============================================================
+   Topo do site: lanterna, HUD de progresso e modelo 3D
+   ============================================================ */
+const motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+const heroEl = $("#hero");
+const stageView = $("#stage-view");
+
+// Posição da lanterna em px, relativa ao topo do hero. O hero3d.js lê este objeto a cada quadro.
+const lantern = { x: 0, y: 0, ready: false };
+
+(function setupLantern() {
+  const el = $("#lantern");
+  if (!heroEl || !el || !stageView) return;
+
+  let tx = 0, ty = 0, raf = 0, last = 0, lastTouch = -1e9, inView = true;
+  let mode = "rest"; // rest | follow-mouse | follow (toque) | wander (toque parado)
+  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const live = CONFIG.lantern && motionOK;
+
+  // Geometria em cache (medida só no resize), para não forçar layout a cada movimento
+  const geo = { hx: 0, hy: 0, sx: 0, sy: 0, sw: 1, sh: 1 };
+  const measure = () => {
+    const h = heroEl.getBoundingClientRect(), s = stageView.getBoundingClientRect();
+    geo.hx = h.left + scrollX; geo.hy = h.top + scrollY;
+    geo.sx = s.left - h.left; geo.sy = s.top - h.top; geo.sw = s.width; geo.sh = s.height;
+  };
+  // Ponto de descanso: acima e à esquerda do cristal, para ele ficar dentro do facho
+  const rest = () => ({ x: geo.sx + geo.sw * 0.34, y: geo.sy + geo.sh * 0.3 });
+  const toHero = (e) => ({ x: e.clientX + scrollX - geo.hx, y: e.clientY + scrollY - geo.hy });
+  const paint = () => { el.style.transform = `translate3d(${lantern.x.toFixed(1)}px, ${lantern.y.toFixed(1)}px, 0)`; };
+  const place = () => {
+    measure();
+    const r = rest();
+    if (mode === "rest" || !lantern.ready) { tx = lantern.x = r.x; ty = lantern.y = r.y; }
+    lantern.ready = true;
+    paint();
+  };
+  place();
+  addEventListener("resize", place);
+  addEventListener("load", place);
+  if ("ResizeObserver" in window) new ResizeObserver(place).observe(heroEl);
+  if (!live) return; // luz estática (movimento reduzido ou lanterna desligada)
+
+  const tick = (now) => {
+    raf = 0;
+    const dt = Math.min(0.05, (now - (last || now)) / 1000);
+    last = now;
+    if (mode === "wander" || (!fine && now - lastTouch > 2600 && mode !== "follow-mouse")) {
+      // no celular a luz "vagueia" devagar em volta do cristal quando ninguém está tocando
+      mode = "wander";
+      const t = now / 1000;
+      const cx = geo.sx + geo.sw / 2, cy = geo.sy + geo.sh / 2;
+      tx = cx + Math.sin(t * 0.37) * geo.sw * 0.42 + Math.sin(t * 0.83) * geo.sw * 0.08;
+      ty = cy + Math.cos(t * 0.29) * geo.sh * 0.3;
+    }
+    const k = 1 - Math.exp(-dt * (mode === "wander" ? 2.2 : 7));
+    lantern.x += (tx - lantern.x) * k;
+    lantern.y += (ty - lantern.y) * k;
+    paint();
+    const moving = Math.abs(tx - lantern.x) + Math.abs(ty - lantern.y) > 0.4;
+    if (inView && !document.hidden && (moving || mode === "wander" || (!fine && mode !== "follow-mouse"))) raf = requestAnimationFrame(tick);
+  };
+  const kick = () => { if (!raf && inView && !document.hidden) { last = 0; raf = requestAnimationFrame(tick); } };
+
+  heroEl.addEventListener("pointermove", (e) => {
+    ({ x: tx, y: ty } = toHero(e));
+    if (e.pointerType === "mouse") mode = "follow-mouse";
+    else { mode = "follow"; lastTouch = performance.now(); }
+    kick();
+  }, { passive: true });
+  heroEl.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") return;
+    ({ x: tx, y: ty } = toHero(e));
+    mode = "follow"; lastTouch = performance.now();
+    kick();
+  }, { passive: true });
+  heroEl.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") lastTouch = performance.now(); }, { passive: true });
+
+  new IntersectionObserver(([en]) => { inView = en.isIntersecting; if (inView) kick(); }).observe(heroEl);
+  document.addEventListener("visibilitychange", kick);
+  kick();
+})();
+
+(function setupHud() {
+  const xp = $("#xp");
+  if (!xp || !CONFIG.hud) return;
+  xp.hidden = false;
+
+  const marks = [...xp.querySelectorAll("a")];
+  const targets = marks.map((a) => $(a.getAttribute("href")));
+  const fill = $("#xp-fill");
+  const n = marks.length;
+  marks.forEach((a, i) => {
+    a.parentElement.style.setProperty("--at", ((i + 1) / n) * 100 + "%");
+    const label = a.textContent.trim();
+    a.setAttribute("aria-label", `${label}, seção ${i + 1} de ${n}`);
+  });
+
+  let tops = [], startLine = 0, first = true, ticking = false, lastActive = -2;
+  const LINE = 0.45; // mesma linha de referência do destaque do menu
+
+  const measure = () => {
+    const vh = innerHeight;
+    const maxLine = document.documentElement.scrollHeight - vh * (1 - LINE);
+    startLine = vh * LINE;
+    tops = targets.map((el) => (el ? el.getBoundingClientRect().top + scrollY : maxLine));
+    // As últimas seções podem nunca chegar à linha (a página acaba antes): puxa para o fim possível
+    for (let i = n - 1; i >= 0; i--) {
+      const cap = i === n - 1 ? maxLine - 2 : tops[i + 1] - 8;
+      tops[i] = Math.max(startLine + 1, Math.min(tops[i], cap));
+    }
+  };
+
+  const update = () => {
+    ticking = false;
+    const line = scrollY + innerHeight * LINE;
+    let p = n;
+    for (let k = 0; k < n; k++) {
+      const a = k ? tops[k - 1] : startLine, b = tops[k];
+      if (line < b) { p = k + Math.max(0, Math.min(1, (line - a) / Math.max(1, b - a))); break; }
+    }
+    fill.style.setProperty("--p", (p / n).toFixed(4));
+    const active = Math.floor(p) - 1; // índice da última seção alcançada
+    marks.forEach((a, i) => {
+      if (i <= active && !a.classList.contains("lit")) {
+        a.classList.add("lit");
+        if (!first && motionOK) {
+          a.classList.add("flash");
+          a.addEventListener("animationend", () => a.classList.remove("flash"), { once: true });
+        }
+      }
+    });
+    if (active !== lastActive) {
+      marks.forEach((a, i) => (i === active ? a.setAttribute("aria-current", "location") : a.removeAttribute("aria-current")));
+      lastActive = active;
+    }
+    first = false;
+  };
+  const onScrollHud = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+  const remeasure = () => { measure(); onScrollHud(); };
+
+  measure();
+  update();
+  addEventListener("scroll", onScrollHud, { passive: true });
+  addEventListener("resize", remeasure);
+  addEventListener("load", remeasure);
+  if ("ResizeObserver" in window) new ResizeObserver(remeasure).observe(document.body);
+})();
+
+(function setupHero3D() {
+  if (!CONFIG.hero3d || !stageView) return;
+  // Fica só com a imagem estática quando: movimento reduzido, economia de dados ou aparelho fraco
+  const conn = navigator.connection;
+  if (!motionOK) return;
+  if (conn && conn.saveData) return;
+  if (navigator.deviceMemory && navigator.deviceMemory <= 2) return;
+  if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return;
+
+  // Cria o contexto WebGL2 uma vez só (o three.js 0.180 exige WebGL2) e entrega ao hero3d.js.
+  // Sem WebGL2, nem baixa o three.js: a imagem estática fica.
+  const getGL = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("webgl2", { alpha: true, antialias: true, depth: true, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: "default" });
+      return context ? { canvas, context } : null;
+    } catch (e) { return null; }
+  };
+
+  const start = () => {
+    const gl = getGL();
+    if (!gl) return;
+    import("./hero3d.js")
+      .then((m) => m.startHero({
+        view: stageView,
+        hero: heroEl,
+        gl,
+        hint: $("#stage-hint"),
+        hintText: $("#stage-hint-text"),
+        meta: $("#stage-meta"),
+        lantern,
+        model: CONFIG.heroModel,
+        modelAlt: CONFIG.heroModelAlt,
+      }))
+      .then((api) => { if (api) stageView.hero3d = api; })
+      .catch((err) => console.warn("Modelo 3D indisponível, mantendo a imagem estática:", err));
+  };
+  const idle = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 2500 }) : setTimeout(start, 400));
+  if (document.readyState === "complete") idle();
+  else addEventListener("load", idle, { once: true });
 })();
 
 loadArt();

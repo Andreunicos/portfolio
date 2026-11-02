@@ -17,6 +17,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- three.js hospedado no próprio site (sem CDN). Só é baixado depois que a página carrega. -->
+  <script type="importmap">
+  {"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}
+  </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"Person","name":"André Casagrande","jobTitle":"Game Designer & 3D Artist","url":"https://andrecasagrande.vercel.app/","email":"andreluizvillanova123@gmail.com","sameAs":["https://www.artstation.com/andrecasagrande","https://www.roblox.com/pt/games/124276279483504/Blox-Survival"]}
   </script>
@@ -39,26 +43,57 @@
   </div>
 </header>
 
+<!-- HUD de progresso: barra de XP com um cristal por seção -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="gem" viewBox="0 0 12 18">
+    <path class="gem-body" d="M6 .6 11.2 6 6 17.4.8 6Z"/>
+    <path class="gem-facet" d="M.8 6h10.4M6 .6 4 6l2 11.4L8 6 6 .6"/>
+  </symbol>
+</svg>
+<nav class="xp" id="xp" aria-label="Progresso da página" hidden>
+  <div class="xp-track" aria-hidden="true"><div class="xp-fill" id="xp-fill"></div></div>
+  <ol class="xp-marks">
+    <li><a href="#sobre"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Sobre</span></a></li>
+    <li><a href="#galeria"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Galeria 3D</span></a></li>
+    <li><a href="#jogos"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Jogos</span></a></li>
+    <li><a href="#assets"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Assets</span></a></li>
+    <li><a href="#certificados"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Formação</span></a></li>
+    <li><a href="#contato"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Contato</span></a></li>
+  </ol>
+</nav>
+
 <main id="top">
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="wrap">
-      <span class="pill">Portfólio 2026</span>
-      <h1>André Casagrande</h1>
-      <ul class="roles">
-        <li>Game Designer</li><li>3D Artist</li><li>Unreal Engine</li><li>Roblox Developer</li>
-      </ul>
-      <div class="hero-actions">
-        <a class="btn primary" href="#galeria">Ver projetos</a>
-        <a class="btn" href="#contato">Vamos conversar</a>
+  <!-- HERO: texto à esquerda, cristal 3D à direita (no celular, o cristal vem primeiro) -->
+  <section class="hero" id="hero" aria-labelledby="hero-title">
+    <div class="hero-dark" aria-hidden="true"><div class="lantern" id="lantern"></div></div>
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <span class="pill">Portfólio 2026</span>
+        <h1 id="hero-title"><span>André</span> <span>Casagrande</span></h1>
+        <ul class="roles">
+          <li>Game Designer</li><li>3D Artist</li><li>Unreal Engine</li><li>Roblox Developer</li>
+        </ul>
+        <div class="hero-actions">
+          <a class="btn primary" href="#galeria">Ver projetos</a>
+          <a class="btn" href="#contato">Vamos conversar</a>
+        </div>
+        <div class="stats" aria-label="Números do portfólio">
+          <div class="stat"><b id="stat-art">37</b><small>artes no ArtStation</small></div>
+          <div class="stat"><b>3</b><small>jogos na Google Play</small></div>
+          <div class="stat"><b>2</b><small>jogos no Roblox</small></div>
+          <div class="stat"><b>6 anos</b><small>estudando e criando em 3D</small></div>
+        </div>
       </div>
-      <div class="stats" aria-label="Números do portfólio">
-        <div class="stat"><b id="stat-art">37</b><small>artes no ArtStation</small></div>
-        <div class="stat"><b>3</b><small>jogos na Google Play</small></div>
-        <div class="stat"><b>2</b><small>jogos no Roblox</small></div>
-        <div class="stat"><b>6 anos</b><small>estudando e criando em 3D</small></div>
-      </div>
+      <figure class="hero-stage" id="hero-stage">
+        <div class="stage-view" id="stage-view" role="img" aria-label="Cristal low poly facetado com um núcleo verde brilhante, inspirado no jogo A Lenda do Cristal">
+          <img class="stage-poster" src="assets/hero-crystal-1040.webp" srcset="assets/hero-crystal-640.webp 640w, assets/hero-crystal-1040.webp 1040w" sizes="(max-width: 820px) 80vw, 540px" width="1040" height="1040" alt="" fetchpriority="high" decoding="async">
+        </div>
+        <figcaption class="stage-cap">
+          <span class="stage-hint" id="stage-hint" hidden><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="stage-hint-text">Arraste para girar</span></span>
+          <span class="stage-meta" id="stage-meta">Modelo low poly, 140 triângulos</span>
+        </figcaption>
+      </figure>
     </div>
   </section>
 

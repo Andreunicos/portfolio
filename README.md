@@ -5,7 +5,8 @@ Site estático (HTML + CSS + JS) com uma função serverless que puxa as artes d
 ```
 public/            site (index.html, style.css, main.js, assets/)
 public/hero3d.js   modelo 3D do topo do site (three.js), carregado depois da página
-public/vendor/     three.js 0.180.0 hospedado no próprio site (licença MIT em vendor/three/LICENSE)
+public/fx.js       efeitos do modo completo (rolagem suave, partículas, cursor, transições), carregado depois da página
+public/vendor/     three.js 0.180.0 e Lenis 1.3.27 hospedados no próprio site (licenças MIT em vendor/*/LICENSE)
 public/models/     coloque aqui o seu .glb
 api/artstation.js  função da Vercel: busca os projetos no ArtStation (cache de 1h)
 vercel.json        diz à Vercel para servir a pasta public/ sem build
@@ -72,3 +73,46 @@ Coloque `false` para desligar um efeito. O resto do site continua igual.
 - Telas largas (1300 px ou mais): trilho vertical na borda direita. Telas menores: linha fina logo abaixo da barra de navegação. Ela some enquanto o menu do celular está aberto.
 - Cada cristal é um link para a seção. Funciona com teclado (Tab) e mostra o nome ao passar o mouse ou focar.
 - Para mudar as seções, edite a lista `<nav class="xp">` no `public/index.html` (o `href` precisa ser o `id` da seção).
+
+
+## Efeitos (fase 2): modo completo e modo reduzido
+
+O site tem dois modos, e quem visita escolhe no botão **Efeitos** da barra de navegação (fica salvo no navegador):
+
+- **Completo**: abertura, 3D com pós-processamento, partículas, cursor, rolagem suave e transições.
+- **Reduzido**: nada se desloca nem fica em loop; só transições suaves de opacidade e cor. O cristal 3D só carrega se a pessoa passar o mouse, tocar ou focar nele, e aí gira apenas quando ela arrasta.
+
+Qual modo abre por padrão:
+1. `?fx=full` ou `?fx=reduced` na URL (bom para testar; não fica salvo).
+2. A escolha feita no botão Efeitos.
+3. Se o sistema pede menos movimento ("Mostrar animações" desligado no Windows, "Reduzir movimento" no Mac/iPhone) ou o aparelho é fraco (2 GB de memória, 2 núcleos ou menos, ou economia de dados), abre **Reduzido** e mostra um aviso discreto com o botão "Ativar efeitos completos". Senão, abre **Completo**.
+
+### O que anima, e onde
+| Efeito | Completo | Reduzido |
+|---|---|---|
+| Abertura (≤ 1,6 s, uma vez por sessão; clique ou tecla pula): letras do nome em "dissolve 1-bit", luz que acende o cristal, números contando | sim | não |
+| Cristal 3D: bloom, aberração cromática sutil, facho de luz volumétrico, poeira no facho, rastros nos estilhaços, parallax da câmera | sim | parado, sem pós-movimento |
+| Clique/toque/Enter no cristal: explosão de estilhaços + onda de choque (no máximo 2 por segundo) | sim | não |
+| Lanterna que segue o cursor/dedo | sim | luz parada |
+| Rolagem suave (só computador com mouse) | sim | não |
+| Cristal "encaixa" no HUD ao rolar (telas ≥ 1300 px) | sim | não |
+| Títulos que dissolvem, parallax das imagens, faixa de ferramentas com inclinação | sim | faixa parada |
+| Galeria: entra em 1-bit e ganha cor; inclinação e brilho no hover | sim | só brilho leve |
+| Cards: inclinação, brilho, brasas (House of Photh), pixels 1-bit (The God of Small Things), brilhos (A Lenda do Cristal) | sim (mouse) | não |
+| Cursor: brilho de cristal com rastro, rótulos "Jogar"/"Ver"/"Ampliar", botões magnéticos (o cursor normal continua) | sim (mouse) | não |
+| HUD: estilhaços quando um cristal acende, cabeça luminosa da barra | sim | só a cor muda |
+| Cortina pontilhada ao navegar pelo menu/HUD | sim | não |
+
+### Desligar um efeito
+No topo do `public/main.js`, mude para `false`:
+`intro`, `postfx`, `cursor`, `smooth`, `scrollFx`, `cardFx`, `wipe` (além dos antigos `hero3d`, `lantern`, `hud`).
+
+### Níveis de qualidade do 3D
+O 3D começa escondido no nível barato, mede ~1,2 s de quadros atrás da imagem estática e só então decide:
+- **full** (computador): bloom, aberração cromática, facho volumétrico, rastros, 150 partículas de poeira, até 2x de pixel ratio.
+- **medium** (celular): bloom mais leve, sem aberração, 90 partículas, até 1,25x.
+- **low**: sem pós-processamento, sem facho nem rastros, 40 partículas, 1x.
+Se os quadros ficarem lentos, desce um nível sozinho; se nem o **low** aguentar, o cristal para de animar e só redesenha quando alguém mexe. Para ver no console: `document.querySelector('#stage-view').hero3d.state()`.
+
+### Imagem estática do cristal
+Se você mudar o visual do cristal, gere de novo `public/assets/hero-crystal-640.webp` e `-1040.webp` (PNG quadrado com fundo transparente convertido para WebP), mantendo os nomes. Peça ao Claude se quiser que ele gere automaticamente.

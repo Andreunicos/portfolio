@@ -1,0 +1,20 @@
+# André Casagrande
+
+> Game Designer e artista 3D (Blender, Unreal Engine 5, Roblox/Lua). Há 6 anos estuda e trabalha com 3D. Disponível para freelance.
+
+Portfólio com artes 3D, jogos publicados e assets à venda.
+
+## Principais links
+- [Portfólio](https://andrecasagrande.vercel.app/): página única com todos os projetos
+- [ArtStation](https://www.artstation.com/andrecasagrande): artes 3D
+- [Fab (Big Loop Studio)](https://www.fab.com/sellers/Big%20Loop%20Studio): asset packs à venda
+
+## Jogos
+- [Blox Survival](https://www.roblox.com/pt/games/124276279483504/Blox-Survival): sobrevivência com classes e habilidades (Roblox)
+- [Mystic Slime Defense](https://www.roblox.com/pt/games/70698901839021/Myst1c-Slime-Defense): tower defense (Roblox)
+- [House of Photh](https://milhoart.itch.io/house-of-photh): terror psicológico em Unreal Engine (Themed Horror Game Jam #20)
+- [The God of Small Things](https://hunterzinho.itch.io/the-god-of-small-things): estratégia rogue-like em 1-bit (1-BIT JAM 15)
+- [Big Stack](https://play.google.com/store/apps/details?id=com.bighouse.bigstack) e [Capivaras: Defesa da Lagoa](https://play.google.com/store/apps/details?id=com.bringmestudio.capivaras): jogos mobile (Google Play)
+
+## Contato
+- E-mail: andreluizvillanova123@gmail.com

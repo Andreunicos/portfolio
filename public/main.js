@@ -8,6 +8,9 @@ const CONFIG = {
   fabName: "Big Loop Studio",
   fabUrl: "https://www.fab.com/sellers/Big%20Loop%20Studio",
   pageSize: 12,
+  // Resultado da 1-BIT JAM 15 (The God of Small Things). Deixe "" enquanto a votação está aberta.
+  // Quando sair, escreva por exemplo "3º lugar geral" ou "1º lugar em Arte" e publique de novo.
+  jamResult: "",
 };
 
 // Nível de 1 a 5 (do currículo)
@@ -243,6 +246,18 @@ document.querySelectorAll(".cert[data-full]").forEach((c) =>
 );
 lb.addEventListener("click", (e) => { if (e.target !== lbImg) closeLb(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLb(); });
+
+/* ============================================================
+   Status da game jam (The God of Small Things)
+   ============================================================ */
+(function jamStatus() {
+  const box = $("#jam-status");
+  if (!box || !CONFIG.jamResult) return;       // sem resultado: mantém o texto "em andamento" do HTML
+  box.classList.add("done");
+  box.querySelector("span").textContent = `🏆 ${CONFIG.jamResult} na 1-BIT JAM 15.`;
+  const badge = document.querySelector("#god-of-small-things .badge.live");
+  if (badge) badge.textContent = "Resultado da jam";
+})();
 
 loadArt();
 loadRoblox();

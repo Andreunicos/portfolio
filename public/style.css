@@ -138,6 +138,18 @@ h2 { font-size: clamp(1.9rem, 4.6vw, 3.2rem); line-height: 1.1; letter-spacing: 
 .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
 .thumbs img { border-radius: 10px; aspect-ratio: 16 / 10; object-fit: cover; width: 100%; border: 1px solid var(--line); }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.project .tags { margin: 0 0 22px; }
+
+/* jogo em preto e branco (1-bit): pixels nítidos e moldura de papel */
+.project.onebit .hero-shot { background: #000; border-color: rgba(255, 255, 255, 0.35); }
+.project.onebit .hero-shot img, .project.onebit .thumbs img { image-rendering: pixelated; background: #000; }
+.project.onebit .thumbs img { border-color: rgba(255, 255, 255, 0.25); }
+.badge.live { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.jam-status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 0 0 16px; border-radius: 12px; border: 1px dashed rgba(255, 255, 255, 0.22); color: var(--text); font-size: 0.9rem; }
+.jam-status i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; animation: blink 1.6s ease-in-out infinite; }
+.jam-status.done i { animation: none; background: #f5c542; }
+@keyframes blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .jam-status i { animation: none; } }
 .thumbs:empty { display: none; }
 .project.no-media { grid-template-columns: 1fr; }
 .p-media .hero-shot:has(img:not([src])) { display: none; }
@@ -223,6 +235,6 @@ footer { padding: 30px 0 50px; text-align: center; color: var(--muted); font-siz
   .features { grid-template-columns: 1fr; }
   .masonry { columns: 2 140px; column-gap: 10px; }
   .art { margin-bottom: 10px; }
-  .thumbs { grid-template-columns: repeat(2, 1fr); }
+  .thumbs { grid-template-columns: repeat(3, 1fr); }
   .stat { min-width: 0; flex: 1 1 140px; }
 }

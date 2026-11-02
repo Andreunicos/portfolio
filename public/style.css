@@ -168,6 +168,9 @@ h2 { font-size: clamp(1.9rem, 4.6vw, 3.2rem); line-height: 1.1; letter-spacing: 
 .game h3 { font-size: 1.15rem; line-height: 1.2; }
 .game small { color: var(--muted); }
 .game p { color: var(--muted); font-size: 0.92rem; flex: 1; }
+.game .minis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.game .minis:empty { display: none; }
+.game .minis img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; }
 .status { font-size: 0.72rem; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
 .status.wait { color: #f5c542; }
 

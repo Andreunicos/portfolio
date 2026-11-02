@@ -14,7 +14,7 @@ Portfólio com artes 3D, jogos publicados e assets à venda.
 - [Mystic Slime Defense](https://www.roblox.com/pt/games/70698901839021/Myst1c-Slime-Defense): tower defense (Roblox)
 - [House of Photh](https://milhoart.itch.io/house-of-photh): terror psicológico em Unreal Engine (Themed Horror Game Jam #20)
 - [The God of Small Things](https://hunterzinho.itch.io/the-god-of-small-things): estratégia rogue-like em 1-bit (1-BIT JAM 15)
-- [Big Stack](https://play.google.com/store/apps/details?id=com.bighouse.bigstack) e [Capivaras: Defesa da Lagoa](https://play.google.com/store/apps/details?id=com.bringmestudio.capivaras): jogos mobile (Google Play)
+- [Big Stack](https://play.google.com/store/apps/details?id=com.bighouse.bigstack), [Capivaras: Defesa da Lagoa](https://play.google.com/store/apps/details?id=com.bringmestudio.capivaras) e [A Lenda do Cristal](https://play.google.com/store/apps/details?id=com.bighouse.alendadocristal): jogos mobile (Google Play)
 
 ## Contato
 - E-mail: andreluizvillanova123@gmail.com

@@ -19,7 +19,28 @@
   <link rel="stylesheet" href="style.css">
   <!-- three.js hospedado no próprio site (sem CDN). Só é baixado depois que a página carrega. -->
   <script type="importmap">
-  {"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}
+  {"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/","lenis":"./vendor/lenis/lenis.min.mjs"}}
+  </script>
+  <!-- Modo de efeitos, decidido antes da primeira pintura: "full" ou "reduced".
+       Ordem: ?fx= na URL > escolha salva no botão Efeitos > sistema (movimento reduzido) / aparelho fraco. -->
+  <script>
+  (function () {
+    var d = document.documentElement, pref = "auto", q = null;
+    d.classList.add("js");
+    try { q = new URLSearchParams(location.search).get("fx"); } catch (e) {}
+    if (q === "full" || q === "reduced") pref = q;
+    else { try { pref = localStorage.getItem("fx") || "auto"; } catch (e) {} }
+    var os = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var n = navigator, c = n.connection;
+    var low = (n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || (c && c.saveData);
+    var mode = pref === "full" || pref === "reduced" ? pref : (os || low ? "reduced" : "full");
+    d.dataset.fx = mode;
+    d.dataset.fxWhy = pref !== "auto" ? (q ? "url" : "user") : os ? "os" : low ? "device" : "default";
+    if (mode === "full") {
+      try { if (!sessionStorage.getItem("intro")) { d.classList.add("intro"); sessionStorage.setItem("intro", "1"); } }
+      catch (e) { d.classList.add("intro"); }
+    }
+  })();
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"Person","name":"André Casagrande","jobTitle":"Game Designer & 3D Artist","url":"https://andrecasagrande.vercel.app/","email":"andreluizvillanova123@gmail.com","sameAs":["https://www.artstation.com/andrecasagrande","https://www.roblox.com/pt/games/124276279483504/Blox-Survival"]}
@@ -38,7 +59,18 @@
       <li><a href="#certificados">Formação</a></li>
       <li><a href="#contato">Contato</a></li>
     </ul>
-    <a class="btn small primary nav-cta" href="#contato">Contratar</a>
+    <div class="nav-tools">
+      <button class="fx-toggle" id="fx-toggle" type="button" aria-pressed="true" aria-labelledby="fx-toggle-label" aria-describedby="fx-hint-text">
+        <span class="fx-switch" aria-hidden="true"><i></i></span>
+        <span id="fx-toggle-label">Efeitos</span><span class="fx-state" aria-hidden="true"></span>
+      </button>
+      <a class="btn small primary nav-cta" href="#contato">Contratar</a>
+    </div>
+    <div class="fx-hint" id="fx-hint" hidden>
+      <p id="fx-hint-text">Efeitos reduzidos pelo seu sistema.</p>
+      <button type="button" class="fx-hint-on" id="fx-hint-on">Ativar efeitos completos</button>
+      <button type="button" class="fx-hint-x" id="fx-hint-x" aria-label="Fechar aviso">×</button>
+    </div>
     <button class="burger" id="burger" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><span></span></button>
   </div>
 </header>
@@ -52,6 +84,7 @@
 </svg>
 <nav class="xp" id="xp" aria-label="Progresso da página" hidden>
   <div class="xp-track" aria-hidden="true"><div class="xp-fill" id="xp-fill"></div></div>
+  <div class="xp-head" id="xp-head" aria-hidden="true"></div>
   <ol class="xp-marks">
     <li><a href="#sobre"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Sobre</span></a></li>
     <li><a href="#galeria"><svg aria-hidden="true" focusable="false"><use href="#gem"/></svg><span class="xp-label">Galeria 3D</span></a></li>
@@ -70,7 +103,7 @@
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <span class="pill">Portfólio 2026</span>
-        <h1 id="hero-title"><span>André</span> <span>Casagrande</span></h1>
+        <h1 id="hero-title" aria-label="André Casagrande"><span class="hw"><span class="ch" style="--i:0">A</span><span class="ch" style="--i:1">n</span><span class="ch" style="--i:2">d</span><span class="ch" style="--i:3">r</span><span class="ch" style="--i:4">é</span></span> <span class="hw"><span class="ch" style="--i:5">C</span><span class="ch" style="--i:6">a</span><span class="ch" style="--i:7">s</span><span class="ch" style="--i:8">a</span><span class="ch" style="--i:9">g</span><span class="ch" style="--i:10">r</span><span class="ch" style="--i:11">a</span><span class="ch" style="--i:12">n</span><span class="ch" style="--i:13">d</span><span class="ch" style="--i:14">e</span></span></h1>
         <ul class="roles">
           <li>Game Designer</li><li>3D Artist</li><li>Unreal Engine</li><li>Roblox Developer</li>
         </ul>
@@ -96,6 +129,9 @@
       </figure>
     </div>
   </section>
+
+  <!-- Faixa de ferramentas (decorativa: as mesmas ferramentas aparecem em texto na seção Sobre) -->
+  <div class="marquee" aria-hidden="true"><div class="mq-track" id="mq-track"><div class="mq-row"><span>Blender</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Unreal Engine 5</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Roblox Studio</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Lua</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Moho</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Photoshop</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Maya</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Illustrator</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Level Design</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>UI / HUD</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Low Poly</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Hand-Painted</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg></div><div class="mq-row"><span>Blender</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Unreal Engine 5</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Roblox Studio</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Lua</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Moho</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Photoshop</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Maya</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Illustrator</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Level Design</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>UI / HUD</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Low Poly</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg><span>Hand-Painted</span><svg class="mq-gem" viewBox="0 0 12 18" aria-hidden="true"><use href="#gem"/></svg></div></div></div>
 
   <!-- SOBRE -->
   <section id="sobre">
@@ -390,6 +426,8 @@
     </div>
   </section>
 </main>
+
+<div class="fx-wipe" id="fx-wipe" aria-hidden="true"></div>
 
 <footer>© <span id="year">2026</span> André Casagrande. Todos os direitos reservados.</footer>
 

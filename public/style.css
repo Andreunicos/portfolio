@@ -1,4 +1,17 @@
 :root {
+  /* tempo e curvas compartilhados por todas as animações (espelhados em fx.js) */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --t-fast: 180ms;
+  --t-med: 420ms;
+  --t-slow: 900ms;
+  /* máscaras de pontilhado Bayer 4x4 (níveis 2, 5, 8, 11 e 14 de 16): o "dissolve 1-bit" do site */
+  --d2: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27 shape-rendering=%27crispEdges%27%3E%3Cpath d=%27M0 0h1v1H0zM2 2h1v1H2z%27/%3E%3C/svg%3E");
+  --d5: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27 shape-rendering=%27crispEdges%27%3E%3Cpath d=%27M0 0h1v1H0zM2 0h1v1H2zM1 1h1v1H1zM0 2h1v1H0zM2 2h1v1H2z%27/%3E%3C/svg%3E");
+  --d8: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27 shape-rendering=%27crispEdges%27%3E%3Cpath d=%27M0 0h1v1H0zM2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM2 2h1v1H2zM1 3h1v1H1zM3 3h1v1H3z%27/%3E%3C/svg%3E");
+  --d11: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27 shape-rendering=%27crispEdges%27%3E%3Cpath d=%27M0 0h1v1H0zM1 0h1v1H1zM2 0h1v1H2zM3 0h1v1H3zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM2 2h1v1H2zM3 2h1v1H3zM1 3h1v1H1zM3 3h1v1H3z%27/%3E%3C/svg%3E");
+  --d14: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%274%27 height=%274%27 shape-rendering=%27crispEdges%27%3E%3Cpath d=%27M0 0h1v1H0zM1 0h1v1H1zM2 0h1v1H2zM3 0h1v1H3zM0 1h1v1H0zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM1 2h1v1H1zM2 2h1v1H2zM3 2h1v1H3zM1 3h1v1H1zM2 3h1v1H2zM3 3h1v1H3z%27/%3E%3C/svg%3E");
   --bg: #07080b;
   --bg-2: #0d0f14;
   --card: #11141a;
@@ -70,7 +83,7 @@ h2 { font-size: clamp(1.9rem, 4.6vw, 3.2rem); line-height: 1.1; letter-spacing: 
   --void: #040507;
   --lamp: 255, 226, 178;            /* luz quente da lanterna (rgb) */
   --dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffe2b2' d='M0 0h1v1H0zM2 2h1v1H2zM2 0h1v1H2zM0 2h1v1H0z' opacity='.9'/%3E%3Cpath fill='%23ffe2b2' d='M1 1h1v1H1zM3 3h1v1H3z' opacity='.45'/%3E%3C/svg%3E");
-  min-height: 100svh; display: grid; align-items: center; padding: 110px 0 72px; overflow: hidden; background: var(--void); isolation: isolate;
+  min-height: 100svh; display: grid; align-items: center; padding: 110px 0 72px; overflow: visible; background: var(--void); isolation: isolate;
 }
 .hero-dark { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 /* vinheta fixa: escurece bordas, nunca a área do texto além do fundo base */
@@ -245,7 +258,7 @@ body.menu-open .xp { visibility: hidden; }
 .jam-status i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; animation: blink 1.6s ease-in-out infinite; }
 .jam-status.done i { animation: none; background: #f5c542; }
 @keyframes blink { 50% { opacity: 0.25; } }
-@media (prefers-reduced-motion: reduce) { .jam-status i { animation: none; } }
+[data-fx="reduced"] .jam-status i { animation: none; }
 .thumbs:empty { display: none; }
 .project.no-media { grid-template-columns: 1fr; }
 .p-media .hero-shot:has(img:not([src])) { display: none; }
@@ -307,15 +320,17 @@ body.menu-open .xp { visibility: hidden; }
 footer { padding: 30px 0 50px; text-align: center; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--line); }
 
 /* reveal */
-.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s, transform 0.7s; }
-.reveal.in { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; transition: none; }
-  .skeleton { animation: none; }
-  .xp a.flash svg { animation: none; }
-  .xp svg, .xp-label, .stage-poster, .stage-view canvas { transition: none; }
-}
+/* só esconde quando há JS (sem JS, todo o conteúdo aparece) */
+.js .reveal { opacity: 0; transform: translateY(24px); transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out); }
+.js .reveal.in { opacity: 1; transform: none; }
+/* modo reduzido: só opacidade e cor; nada se desloca, nada fica em loop */
+[data-fx="reduced"] { scroll-behavior: auto; }
+[data-fx="reduced"] .reveal { transform: none; transition: opacity var(--t-med) linear; }
+[data-fx="reduced"] .skeleton { animation: none; }
+[data-fx="reduced"] .xp a.flash svg { animation: none; }
+[data-fx="reduced"] .xp svg { transition: filter var(--t-med), color var(--t-med); transform: none !important; }
+[data-fx="reduced"] .btn:hover, [data-fx="reduced"] .game:hover, [data-fx="reduced"] .asset:hover, [data-fx="reduced"] .cert:hover { transform: none; }
+[data-fx="reduced"] .art:hover img { transform: none; filter: brightness(1.08); }
 
 /* responsive */
 @media (max-width: 980px) {
@@ -350,3 +365,153 @@ footer { padding: 30px 0 50px; text-align: center; color: var(--muted); font-siz
   .thumbs { grid-template-columns: repeat(3, 1fr); }
   .stat { min-width: 0; flex: 1 1 140px; }
 }
+
+/* ============================================================
+   FASE 2: efeitos. Tudo aqui respeita [data-fx="full" | "reduced"].
+   Assinatura: o "dissolve 1-bit" (pontilhado Bayer), a luz da lanterna e os estilhaços de cristal.
+   ============================================================ */
+@keyframes dissolve-in {
+  0% { -webkit-mask-image: linear-gradient(transparent, transparent); mask-image: linear-gradient(transparent, transparent); }
+  16% { -webkit-mask-image: var(--d2); mask-image: var(--d2); }
+  33% { -webkit-mask-image: var(--d5); mask-image: var(--d5); }
+  50% { -webkit-mask-image: var(--d8); mask-image: var(--d8); }
+  66% { -webkit-mask-image: var(--d11); mask-image: var(--d11); }
+  83% { -webkit-mask-image: var(--d14); mask-image: var(--d14); }
+  100% { -webkit-mask-image: none; mask-image: none; }
+}
+@keyframes rise-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ch-glow { 0% { color: #fff; text-shadow: 0 0 22px rgba(44, 245, 192, 0.9); } 100% { text-shadow: 0 0 0 rgba(44, 245, 192, 0); } }
+@keyframes lights-on { 0% { filter: brightness(0.12); } 32% { filter: brightness(0.7); } 40% { filter: brightness(0.3); } 56% { filter: brightness(1); } 100% { filter: brightness(1); } }
+@keyframes sweep { 0% { background-position: 120% 0; opacity: 1; } 85% { opacity: 1; } 100% { background-position: -40% 0; opacity: 0; } }
+.dz { -webkit-mask-size: var(--dz, 8px); mask-size: var(--dz, 8px); -webkit-mask-repeat: repeat; mask-repeat: repeat; }
+
+/* H1 em letras (o nome acessível vem do aria-label do h1) */
+.hero h1 .hw { display: inline-block; white-space: nowrap; }
+.hero h1 .ch { display: inline-block; -webkit-mask-size: 8px; mask-size: 8px; }
+
+/* ---------- abertura (só uma vez por sessão, só no modo completo; clique ou tecla pula) ---------- */
+.intro .hero h1 .ch { animation: dissolve-in 560ms linear both, ch-glow 900ms var(--ease-out) both; animation-delay: calc(140ms + var(--i) * 38ms); }
+.intro .hero .pill { animation: dissolve-in 420ms linear both; -webkit-mask-size: 6px; mask-size: 6px; }
+.intro .roles li { animation: rise-in 620ms var(--ease-out) both; }
+.intro .roles li:nth-child(1) { animation-delay: 560ms; } .intro .roles li:nth-child(2) { animation-delay: 620ms; }
+.intro .roles li:nth-child(3) { animation-delay: 680ms; } .intro .roles li:nth-child(4) { animation-delay: 740ms; }
+.intro .hero-actions { animation: rise-in 620ms var(--ease-out) 760ms both; }
+.intro .stat { animation: rise-in 620ms var(--ease-out) both; }
+.intro .stat:nth-child(1) { animation-delay: 860ms; } .intro .stat:nth-child(2) { animation-delay: 920ms; }
+.intro .stat:nth-child(3) { animation-delay: 980ms; } .intro .stat:nth-child(4) { animation-delay: 1040ms; }
+.intro .stage-cap { animation: fade-in 500ms linear 1100ms both; }
+.intro .xp { animation: fade-in 600ms linear 1050ms both; }
+.intro .marquee { animation: fade-in 700ms linear 900ms both; }
+.intro .stage-poster { animation: lights-on 1100ms var(--ease-out) 80ms both; }
+/* facho de luz que atravessa o cristal (recortado pelo próprio contorno do pôster) */
+.stage-view::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg, transparent 38%, rgba(255, 236, 205, 0.65) 49%, rgba(140, 255, 228, 0.5) 52%, transparent 63%) 120% 0 / 300% 100% no-repeat;
+  -webkit-mask: url("assets/hero-crystal-640.webp") center / contain no-repeat; mask: url("assets/hero-crystal-640.webp") center / contain no-repeat;
+}
+.intro .stage-view::after { animation: sweep 900ms var(--ease-in-out, ease-in-out) 420ms both; }
+.intro.intro-skip *, .intro.intro-skip *::after { animation-delay: 0s !important; animation-duration: 1ms !important; }
+
+/* granulação de filme no hero (estática no modo reduzido) */
+.hero-dark::before {
+  content: ""; position: absolute; inset: -60px; z-index: 1; opacity: 0.07; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.35'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 160px 160px;
+}
+@keyframes grain { 0% { transform: translate(0, 0); } 20% { transform: translate(-37px, 21px); } 40% { transform: translate(18px, -44px); } 60% { transform: translate(-12px, 33px); } 80% { transform: translate(41px, 9px); } }
+[data-fx="full"] .hero-dark::before { animation: grain 0.9s steps(1) infinite; }
+.hero.offscreen .hero-dark::before { animation-play-state: paused; }
+
+/* ---------- botão Efeitos ---------- */
+.nav .wrap { position: relative; }
+.nav-tools { display: flex; align-items: center; gap: 12px; }
+.fx-toggle {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 13px 0 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); font-size: 0.8rem; color: var(--text); transition: border-color var(--t-fast), background var(--t-fast);
+}
+.fx-toggle:hover { border-color: rgba(44, 245, 192, 0.45); }
+.fx-switch { position: relative; width: 26px; height: 14px; border-radius: 99px; background: rgba(255, 255, 255, 0.16); transition: background var(--t-fast); flex: none; }
+.fx-switch i { position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: #c9ced6; transition: transform var(--t-fast) var(--ease-snap), background var(--t-fast); }
+.fx-toggle[aria-pressed="true"] .fx-switch { background: rgba(44, 245, 192, 0.35); }
+.fx-toggle[aria-pressed="true"] .fx-switch i { transform: translateX(12px); background: var(--accent); box-shadow: 0 0 8px rgba(44, 245, 192, 0.8); }
+.fx-state { color: #a2a8b2; }
+/* o estado vem do CSS: o nome acessível fica fixo ("Efeitos") e o aria-pressed diz se está ligado */
+.fx-state::after { content: "Completo"; }
+.fx-toggle[aria-pressed="false"] .fx-state::after { content: "Reduzido"; }
+.fx-hint {
+  position: absolute; right: 0; top: 72px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-width: min(330px, 100%);
+  padding: 12px 40px 12px 14px; border-radius: 14px; border: 1px solid rgba(44, 245, 192, 0.3); background: rgba(7, 8, 11, 0.96); font-size: 0.82rem; color: var(--text);
+  animation: fade-in var(--t-med) linear both;
+}
+.fx-hint p { flex: 1 1 100%; color: #c3c8d0; }
+.fx-hint-on { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.fx-hint-x { position: absolute; right: 8px; top: 6px; width: 28px; height: 28px; border-radius: 8px; font-size: 1.1rem; color: #a2a8b2; }
+@media (max-width: 820px) {
+  .fx-state { display: none; }
+  .nav-tools { margin-left: auto; margin-right: 10px; }
+  .fx-hint { left: 0; right: 0; max-width: none; }
+}
+
+/* ---------- HUD: cabeça luminosa da barra ---------- */
+.xp-head { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #bffff0; opacity: var(--hv, 0.45);
+  box-shadow: 0 0 8px 2px rgba(44, 245, 192, 0.85), 0 0 22px 6px rgba(44, 245, 192, 0.35); pointer-events: none; transition: opacity var(--t-med); }
+@media (min-width: 1300px) { .xp-head { left: 10px; top: -4px; } }
+@media (max-width: 1299.98px) { .xp-head { top: 10px; left: -4px; } }
+
+/* ---------- faixa de ferramentas ---------- */
+.marquee { position: relative; z-index: 2; overflow: hidden; padding: 20px 0; border-block: 1px solid var(--line); background: var(--bg); }
+.mq-track { display: flex; width: max-content; transform: skewX(var(--skew, 0deg)); }
+[data-fx="full"] .mq-track { animation: mq 46s linear infinite; }
+.marquee.paused .mq-track { animation-play-state: paused; }
+@keyframes mq { to { translate: -50% 0; } }
+.mq-row { display: flex; align-items: center; gap: 30px; padding-right: 30px; font-size: clamp(1.3rem, 2.8vw, 2.2rem); font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+.mq-row span { color: #8d939e; }
+.mq-row span:nth-of-type(3n + 1) { color: #e2e5ea; }
+.mq-gem { width: 12px; height: 18px; color: var(--accent); --gem-fill: 0.35; flex: none; }
+
+/* ---------- transição entre seções (cortina pontilhada) ---------- */
+.fx-wipe {
+  position: fixed; inset: 0; z-index: 95; pointer-events: none; visibility: hidden; -webkit-mask-size: 12px; mask-size: 12px;
+  background: repeating-linear-gradient(0deg, rgba(44, 245, 192, 0.05) 0 1px, transparent 1px 4px), var(--void, #040507);
+}
+.fx-wipe.cover { visibility: visible; animation: dissolve-in 230ms linear both; }
+.fx-wipe.uncover { visibility: visible; animation: dissolve-in 320ms linear reverse both; }
+section[tabindex="-1"]:focus { outline: none; }
+
+/* ---------- inclinação + brilho (galeria e cards), só no modo completo com mouse ---------- */
+.fx-tilt { transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--lift, 0px)); transition: transform 600ms var(--ease-out), border-color 0.3s; }
+.fx-tilt.tilting { transition: transform 120ms linear, border-color 0.3s; }
+.fx-tilt.game:hover, .fx-tilt.asset:hover { --lift: -4px; }
+.project.fx-tilt { position: relative; }
+.fx-tilt::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3; opacity: 0; transition: opacity var(--t-med);
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(255, 232, 196, 0.16), rgba(255, 232, 196, 0.04) 30%, transparent 55%);
+}
+.fx-tilt:hover::after { opacity: 1; }
+.art figcaption { z-index: 4; }
+.project .p-media, .project > div:first-child { transform: translate3d(var(--px, 0px), var(--py, 0px), 0); transition: transform 700ms var(--ease-out); }
+.fx-par .hero-shot img { transform: translateY(var(--sp, 0px)) scale(1.08); }
+/* galeria: entra em 1-bit e ganha cor */
+@keyframes colorize { from { filter: grayscale(1) contrast(1.7) brightness(0.8); } to { filter: none; } }
+.art.art-pending { opacity: 0; }
+.art.art-in { -webkit-mask-size: 8px; mask-size: 8px; animation: dissolve-in 620ms linear both; animation-delay: var(--d, 0ms); }
+.art.art-in img { animation: colorize 1200ms var(--ease-out) both; animation-delay: calc(var(--d, 0ms) + 260ms); }
+/* títulos de seção: palavras dissolvem em sequência */
+.fx-words .w { display: inline-block; -webkit-mask-size: 6px; mask-size: 6px; }
+.fx-words.pending .w { -webkit-mask-image: linear-gradient(transparent, transparent); mask-image: linear-gradient(transparent, transparent); }
+.fx-words.go .w { animation: dissolve-in 520ms linear both; animation-delay: calc(var(--i) * 55ms); }
+
+/* ---------- cursor: brilho de cristal + rótulo de contexto (o cursor nativo continua) ---------- */
+.fx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 90; pointer-events: none; }
+.fx-label {
+  position: fixed; left: 0; top: 0; z-index: 91; pointer-events: none; padding: 5px 11px; border-radius: 999px; background: var(--accent); color: #04120d;
+  font-size: 0.74rem; font-weight: 600; white-space: nowrap; opacity: 0; scale: 0.7; transition: opacity var(--t-fast), scale var(--t-fast) var(--ease-snap);
+}
+.fx-label.on { opacity: 1; scale: 1; }
+/* botões magnéticos: usa a propriedade translate para não brigar com o transform do hover */
+.btn { translate: var(--mx, 0px) var(--my, 0px); transition: transform 0.2s, border-color 0.2s, background 0.2s, translate 500ms var(--ease-out); }
+.btn.magnet { transition: transform 0.2s, border-color 0.2s, background 0.2s, translate 90ms linear; }
+/* encaixe do cristal no HUD ao rolar (desktop) */
+.hero-stage.docking { z-index: 40; pointer-events: none; }
+html.lenis, html.lenis body { height: auto; }
+html.lenis { scroll-behavior: auto !important; }

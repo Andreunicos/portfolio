@@ -22,6 +22,14 @@ const CONFIG = {
   heroModel: "",
   // Descrição do modelo para leitores de tela (troque junto com o heroModel).
   heroModelAlt: "",
+  // ---- Efeitos da fase 2 (cada um pode ser desligado) ----
+  intro: true,     // abertura curta, uma vez por sessão
+  postfx: true,    // bloom, aberração cromática e luz volumétrica no 3D
+  cursor: true,    // brilho de cristal que acompanha o mouse e rótulos "Jogar"/"Ver"
+  smooth: true,    // rolagem suave (Lenis) no computador
+  scrollFx: true,  // títulos que dissolvem, contadores, parallax, faixa de ferramentas, encaixe do cristal
+  cardFx: true,    // inclinação, brilho e partículas nos cards e na galeria
+  wipe: true,      // cortina pontilhada ao navegar pelo menu/HUD
 };
 
 // Nível de 1 a 5 (do currículo)
@@ -188,7 +196,7 @@ async function loadArt() {
     }
   }
   const stat = $("#stat-art");
-  if (stat) stat.textContent = total;
+  if (stat) setStat(stat, total);
   renderMore();
 }
 
@@ -273,14 +281,97 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLb();
 })();
 
 /* ============================================================
+   Modo de efeitos: "full" (completo) ou "reduced" (reduzido)
+   O <head> já decidiu antes da primeira pintura (data-fx). Aqui fica o botão "Efeitos".
+   ============================================================ */
+const root = document.documentElement;
+const FX = {
+  get mode() { return root.dataset.fx === "reduced" ? "reduced" : "full"; },
+  get why() { return root.dataset.fxWhy || "default"; },
+  get full() { return this.mode === "full"; },
+  set(mode, why = "user") {
+    if (mode !== "full" && mode !== "reduced") return;
+    root.dataset.fx = mode;
+    root.dataset.fxWhy = why;
+    if (why === "user") { try { localStorage.setItem("fx", mode); } catch (e) { /* sem armazenamento: vale só nesta visita */ } }
+    syncToggle();
+    dispatchEvent(new CustomEvent("fxchange", { detail: { mode } }));
+  },
+};
+window.FX = FX;
+const lowEndDevice = (() => {
+  const n = navigator, c = n.connection;
+  return !!((n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || (c && c.saveData));
+})();
+
+const fxToggle = $("#fx-toggle");
+const fxHint = $("#fx-hint");
+function syncToggle() {
+  if (fxToggle) fxToggle.setAttribute("aria-pressed", String(FX.full));
+  if (fxHint && FX.full) fxHint.hidden = true;
+}
+syncToggle();
+if (fxToggle) fxToggle.addEventListener("click", () => FX.set(FX.full ? "reduced" : "full"));
+(function hint() {
+  if (!fxHint || FX.full || (FX.why !== "os" && FX.why !== "device")) return;
+  try { if (sessionStorage.getItem("fx-hint")) return; } catch (e) { /* ok */ }
+  $("#fx-hint-text").textContent = FX.why === "os"
+    ? "Efeitos reduzidos porque seu sistema pede menos movimento."
+    : "Efeitos reduzidos para poupar seu aparelho.";
+  fxHint.hidden = false;
+  const close = () => { fxHint.hidden = true; try { sessionStorage.setItem("fx-hint", "1"); } catch (e) { /* ok */ } };
+  $("#fx-hint-x").addEventListener("click", () => { close(); fxToggle.focus(); });
+  $("#fx-hint-on").addEventListener("click", () => { close(); FX.set("full"); fxToggle.focus(); });
+  setTimeout(close, 14000);
+})();
+
+/* Abertura: só roda se o <head> marcou "intro". Qualquer clique ou tecla pula. */
+const introPlayed = root.classList.contains("intro") && CONFIG.intro;
+if (root.classList.contains("intro")) {
+  if (!CONFIG.intro) root.classList.remove("intro");
+  else {
+    const skip = () => root.classList.add("intro-skip");
+    addEventListener("pointerdown", skip, { once: true });
+    addEventListener("keydown", skip, { once: true });
+    addEventListener("wheel", skip, { once: true, passive: true });
+    setTimeout(() => root.classList.remove("intro", "intro-skip"), 2200);
+  }
+}
+
+/* Números do hero: contam de 0 até o valor na abertura (o valor final está sempre no HTML) */
+function setStat(el, value) {
+  el.dataset.target = value;
+  if (!el.dataset.counting) el.textContent = value;
+}
+(function counters() {
+  if (!introPlayed || !CONFIG.scrollFx) return;
+  document.querySelectorAll(".stat b").forEach((b, i) => {
+    const m = b.textContent.match(/^(\d+)(.*)$/);
+    if (!m) return;
+    b.dataset.target = m[1];
+    b.dataset.counting = "1";
+    const suffix = m[2], t0 = performance.now() + 900 + i * 70, dur = 1100;
+    b.textContent = "0" + suffix;
+    const step = (now) => {
+      const k = Math.min(1, Math.max(0, (now - t0) / dur));
+      const e = 1 - Math.pow(1 - k, 4);
+      const target = +b.dataset.target;
+      b.textContent = Math.round(target * e) + suffix;
+      if (k < 1 && !root.classList.contains("intro-skip")) requestAnimationFrame(step);
+      else { b.textContent = b.dataset.target + suffix; delete b.dataset.counting; }
+    };
+    requestAnimationFrame(step);
+  });
+})();
+
+/* ============================================================
    Topo do site: lanterna, HUD de progresso e modelo 3D
    ============================================================ */
-const motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 const heroEl = $("#hero");
 const stageView = $("#stage-view");
 
 // Posição da lanterna em px, relativa ao topo do hero. O hero3d.js lê este objeto a cada quadro.
-const lantern = { x: 0, y: 0, ready: false };
+const lantern = { x: 0, y: 0, ready: false, nx: 0, ny: 0 };
 
 (function setupLantern() {
   const el = $("#lantern");
@@ -289,7 +380,7 @@ const lantern = { x: 0, y: 0, ready: false };
   let tx = 0, ty = 0, raf = 0, last = 0, lastTouch = -1e9, inView = true;
   let mode = "rest"; // rest | follow-mouse | follow (toque) | wander (toque parado)
   const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const live = CONFIG.lantern && motionOK;
+  const live = () => CONFIG.lantern && FX.full;
 
   // Geometria em cache (medida só no resize), para não forçar layout a cada movimento
   const geo = { hx: 0, hy: 0, sx: 0, sy: 0, sw: 1, sh: 1 };
@@ -301,22 +392,27 @@ const lantern = { x: 0, y: 0, ready: false };
   // Ponto de descanso: acima e à esquerda do cristal, para ele ficar dentro do facho
   const rest = () => ({ x: geo.sx + geo.sw * 0.34, y: geo.sy + geo.sh * 0.3 });
   const toHero = (e) => ({ x: e.clientX + scrollX - geo.hx, y: e.clientY + scrollY - geo.hy });
-  const paint = () => { el.style.transform = `translate3d(${lantern.x.toFixed(1)}px, ${lantern.y.toFixed(1)}px, 0)`; };
+  const paint = () => {
+    el.style.transform = `translate3d(${lantern.x.toFixed(1)}px, ${lantern.y.toFixed(1)}px, 0)`;
+    lantern.nx = (lantern.x / Math.max(1, heroEl.clientWidth)) * 2 - 1;
+    lantern.ny = (lantern.y / Math.max(1, innerHeight)) * 2 - 1;
+  };
   const place = () => {
     measure();
     const r = rest();
-    if (mode === "rest" || !lantern.ready) { tx = lantern.x = r.x; ty = lantern.y = r.y; }
+    if (mode === "rest" || !lantern.ready || !live()) { mode = "rest"; tx = lantern.x = r.x; ty = lantern.y = r.y; }
     lantern.ready = true;
     paint();
   };
+  // a medição espera o layout assentar (o encaixe do cristal mexe no transform do palco)
   place();
   addEventListener("resize", place);
   addEventListener("load", place);
   if ("ResizeObserver" in window) new ResizeObserver(place).observe(heroEl);
-  if (!live) return; // luz estática (movimento reduzido ou lanterna desligada)
 
   const tick = (now) => {
     raf = 0;
+    if (!live()) return;
     const dt = Math.min(0.05, (now - (last || now)) / 1000);
     last = now;
     if (mode === "wander" || (!fine && now - lastTouch > 2600 && mode !== "follow-mouse")) {
@@ -334,24 +430,30 @@ const lantern = { x: 0, y: 0, ready: false };
     const moving = Math.abs(tx - lantern.x) + Math.abs(ty - lantern.y) > 0.4;
     if (inView && !document.hidden && (moving || mode === "wander" || (!fine && mode !== "follow-mouse"))) raf = requestAnimationFrame(tick);
   };
-  const kick = () => { if (!raf && inView && !document.hidden) { last = 0; raf = requestAnimationFrame(tick); } };
+  const kick = () => { if (live() && !raf && inView && !document.hidden) { last = 0; raf = requestAnimationFrame(tick); } };
 
   heroEl.addEventListener("pointermove", (e) => {
+    if (!live()) return;
     ({ x: tx, y: ty } = toHero(e));
     if (e.pointerType === "mouse") mode = "follow-mouse";
     else { mode = "follow"; lastTouch = performance.now(); }
     kick();
   }, { passive: true });
   heroEl.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse") return;
+    if (!live() || e.pointerType === "mouse") return;
     ({ x: tx, y: ty } = toHero(e));
     mode = "follow"; lastTouch = performance.now();
     kick();
   }, { passive: true });
   heroEl.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") lastTouch = performance.now(); }, { passive: true });
 
-  new IntersectionObserver(([en]) => { inView = en.isIntersecting; if (inView) kick(); }).observe(heroEl);
+  new IntersectionObserver(([en]) => {
+    inView = en.isIntersecting;
+    heroEl.classList.toggle("offscreen", !inView);
+    if (inView) kick();
+  }).observe(heroEl);
   document.addEventListener("visibilitychange", kick);
+  addEventListener("fxchange", () => { mode = "rest"; place(); kick(); });
   kick();
 })();
 
@@ -363,6 +465,8 @@ const lantern = { x: 0, y: 0, ready: false };
   const marks = [...xp.querySelectorAll("a")];
   const targets = marks.map((a) => $(a.getAttribute("href")));
   const fill = $("#xp-fill");
+  const head = $("#xp-head");
+  const track = xp.querySelector(".xp-track");
   const n = marks.length;
   marks.forEach((a, i) => {
     a.parentElement.style.setProperty("--at", ((i + 1) / n) * 100 + "%");
@@ -370,7 +474,8 @@ const lantern = { x: 0, y: 0, ready: false };
     a.setAttribute("aria-label", `${label}, seção ${i + 1} de ${n}`);
   });
 
-  let tops = [], startLine = 0, first = true, ticking = false, lastActive = -2;
+  let tops = [], startLine = 0, first = true, ticking = false, lastActive = -2, trackLen = 0, vertical = true;
+  let lastY = scrollY, lastT = performance.now(), vel = 0;
   const LINE = 0.45; // mesma linha de referência do destaque do menu
 
   const measure = () => {
@@ -383,6 +488,8 @@ const lantern = { x: 0, y: 0, ready: false };
       const cap = i === n - 1 ? maxLine - 2 : tops[i + 1] - 8;
       tops[i] = Math.max(startLine + 1, Math.min(tops[i], cap));
     }
+    vertical = track.clientHeight > track.clientWidth;
+    trackLen = vertical ? track.clientHeight : track.clientWidth;
   };
 
   const update = () => {
@@ -394,13 +501,24 @@ const lantern = { x: 0, y: 0, ready: false };
       if (line < b) { p = k + Math.max(0, Math.min(1, (line - a) / Math.max(1, b - a))); break; }
     }
     fill.style.setProperty("--p", (p / n).toFixed(4));
+    // cabeça luminosa: acompanha a ponta da barra e brilha mais quando a rolagem é rápida
+    const now = performance.now();
+    const v = Math.abs(scrollY - lastY) / Math.max(8, now - lastT);
+    lastY = scrollY; lastT = now;
+    vel = Math.min(1, vel * 0.6 + v * 0.25);
+    if (head) {
+      const pos = (p / n) * trackLen;
+      head.style.transform = vertical ? `translateY(${pos.toFixed(1)}px)` : `translateX(${pos.toFixed(1)}px)`;
+      head.style.setProperty("--hv", (0.4 + (FX.full ? vel * 0.6 : 0)).toFixed(2));
+    }
     const active = Math.floor(p) - 1; // índice da última seção alcançada
     marks.forEach((a, i) => {
       if (i <= active && !a.classList.contains("lit")) {
         a.classList.add("lit");
-        if (!first && motionOK) {
+        if (!first && FX.full) {
           a.classList.add("flash");
           a.addEventListener("animationend", () => a.classList.remove("flash"), { once: true });
+          dispatchEvent(new CustomEvent("hud:lit", { detail: { el: a } }));
         }
       }
     });
@@ -409,6 +527,7 @@ const lantern = { x: 0, y: 0, ready: false };
       lastActive = active;
     }
     first = false;
+    if (vel > 0.02) onScrollHud(); // deixa o brilho apagar devagar depois de parar
   };
   const onScrollHud = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
   const remeasure = () => { measure(); onScrollHud(); };
@@ -421,15 +540,18 @@ const lantern = { x: 0, y: 0, ready: false };
   if ("ResizeObserver" in window) new ResizeObserver(remeasure).observe(document.body);
 })();
 
-(function setupHero3D() {
-  if (!CONFIG.hero3d || !stageView) return;
-  // Fica só com a imagem estática quando: movimento reduzido, economia de dados ou aparelho fraco
-  const conn = navigator.connection;
-  if (!motionOK) return;
-  if (conn && conn.saveData) return;
-  if (navigator.deviceMemory && navigator.deviceMemory <= 2) return;
-  if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return;
+/* ============================================================
+   Carregamento sob demanda: modelo 3D (hero3d.js) e efeitos (fx.js)
+   Nada disso atrasa a primeira pintura: tudo entra depois do "load", em tempo ocioso.
+   ============================================================ */
+const whenIdle = (fn) => {
+  const go = () => ("requestIdleCallback" in window ? requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 400));
+  if (document.readyState === "complete") go();
+  else addEventListener("load", go, { once: true });
+};
 
+const hero3d = (function setupHero3D() {
+  let started = false, api = null;
   // Cria o contexto WebGL2 uma vez só (o three.js 0.180 exige WebGL2) e entrega ao hero3d.js.
   // Sem WebGL2, nem baixa o three.js: a imagem estática fica.
   const getGL = () => {
@@ -439,8 +561,9 @@ const lantern = { x: 0, y: 0, ready: false };
       return context ? { canvas, context } : null;
     } catch (e) { return null; }
   };
-
   const start = () => {
+    if (started || !CONFIG.hero3d || !stageView) return;
+    started = true;
     const gl = getGL();
     if (!gl) return;
     import("./hero3d.js")
@@ -454,13 +577,43 @@ const lantern = { x: 0, y: 0, ready: false };
         lantern,
         model: CONFIG.heroModel,
         modelAlt: CONFIG.heroModelAlt,
+        mode: FX.mode,
+        intro: introPlayed,
+        postfx: CONFIG.postfx,
       }))
-      .then((api) => { if (api) stageView.hero3d = api; })
+      .then((a) => { if (a) { api = a; stageView.hero3d = a; } })
       .catch((err) => console.warn("Modelo 3D indisponível, mantendo a imagem estática:", err));
   };
-  const idle = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 2500 }) : setTimeout(start, 400));
-  if (document.readyState === "complete") idle();
-  else addEventListener("load", idle, { once: true });
+  if (!CONFIG.hero3d || !stageView) return { start() {} };
+  if (FX.full) whenIdle(start);
+  else if (FX.why !== "device") {
+    // modo reduzido: o 3D (sem movimento automático) só carrega se a pessoa mexer no cristal
+    const onDemand = () => { ["pointerenter", "touchstart", "focusin"].forEach((t) => stageView.removeEventListener(t, onDemand)); start(); };
+    stageView.tabIndex = 0;
+    ["pointerenter", "touchstart", "focusin"].forEach((t) => stageView.addEventListener(t, onDemand, { passive: true }));
+  }
+  addEventListener("fxchange", (e) => {
+    if (api && api.setMode) api.setMode(e.detail.mode);
+    if (e.detail.mode === "full") start();
+  });
+  return { start };
+})();
+
+(function setupFx() {
+  let mod = null, loading = false;
+  const ctx = { CONFIG, FX, lantern, heroEl, stageView, $ };
+  const load = () => {
+    if (mod || loading) { if (mod) mod.start(ctx); return; }
+    loading = true;
+    import("./fx.js")
+      .then((m) => { mod = m; if (FX.full) m.start(ctx); })
+      .catch((err) => console.warn("Efeitos indisponíveis:", err));
+  };
+  if (FX.full) whenIdle(load);
+  addEventListener("fxchange", (e) => {
+    if (e.detail.mode === "full") load();
+    else if (mod) mod.stop();
+  });
 })();
 
 loadArt();

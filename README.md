@@ -5,7 +5,7 @@ Site estático (HTML + CSS + JS) com uma função serverless que puxa as artes d
 ```
 public/            site (index.html, style.css, main.js, assets/)
 public/hero3d.js   modelo 3D do topo do site (three.js), carregado depois da página
-public/fx.js       efeitos do modo completo (rolagem suave, partículas, cursor, transições), carregado depois da página
+public/fx.js       efeitos do modo completo (rolagem suave, partículas, cursor, portal, hovers dos jogos), carregado depois da página
 public/vendor/     three.js 0.180.0 e Lenis 1.3.27 hospedados no próprio site (licenças MIT em vendor/*/LICENSE)
 public/models/     coloque aqui o seu .glb
 api/artstation.js  função da Vercel: busca os projetos no ArtStation (cache de 1h)
@@ -101,7 +101,7 @@ Qual modo abre por padrão:
 | Cards: inclinação, brilho, brasas (House of Photh), pixels 1-bit (The God of Small Things), brilhos (A Lenda do Cristal) | sim (mouse) | não |
 | Cursor: brilho de cristal com rastro, rótulos "Jogar"/"Ver"/"Ampliar", botões magnéticos (o cursor normal continua) | sim (mouse) | não |
 | HUD: estilhaços quando um cristal acende, cabeça luminosa da barra | sim | só a cor muda |
-| Cortina pontilhada ao navegar pelo menu/HUD | sim | não |
+| Transição portal ao navegar pelo menu/HUD (fase 3; com `portal: false` volta a cortina pontilhada) | sim | não |
 
 ### Desligar um efeito
 No topo do `public/main.js`, mude para `false`:
@@ -116,3 +116,26 @@ Se os quadros ficarem lentos, desce um nível sozinho; se nem o **low** aguentar
 
 ### Imagem estática do cristal
 Se você mudar o visual do cristal, gere de novo `public/assets/hero-crystal-640.webp` e `-1040.webp` (PNG quadrado com fundo transparente convertido para WebP), mantendo os nomes. Peça ao Claude se quiser que ele gere automaticamente.
+
+## Efeitos (fase 3)
+
+Tudo aqui só existe no modo completo. Com `?fx=reduced` na URL ou sem JavaScript, o site fica igual ao normal: sem tela arcade, sem som, sem portal, sem cursor customizado.
+
+| Efeito | O que faz | Desligar (topo do `public/main.js`) |
+|---|---|---|
+| Tela arcade "INSIRA A MOEDA" | Na primeira visita da sessão, uma tela 8 bits com scanlines mostra o nome em fonte pixel, "INSIRA A MOEDA" piscando devagar (1 vez por segundo) e uma barra "CARREGANDO". Se ninguém mexer, entra sozinha em ~1,6 s. Um clique, toque ou tecla "insere a moeda": ela cai, o crédito vira 01, a barra enche e a tela se desfaz em pontilhado. Esc sai na hora. Nunca passa de 2,2 s. O site inteiro já está carregado por baixo (não atrasa o LCP nem esconde nada do Google). | `arcadeIntro: false` (volta a abertura antiga do hero) |
+| Portal | Ao clicar num link do menu, do HUD ou num botão interno (#secao), um anel 1-bit verde/roxo abre a partir do ponto do clique (ou do cristal do HUD, pelo teclado), cobre a tela com um vórtice escuro, a página salta e a seção aparece "dentro" do portal, que abre até sumir. ~750 ms. Qualquer tecla ou clique pula. O endereço (#secao), o "voltar" do navegador e o foco continuam funcionando. | `portal: false` (volta a cortina pontilhada; `wipe: false` tira as duas) |
+| Som | Botão **Som** na barra (ícone de alto-falante). Começa **desligado** para todo mundo; a escolha fica salva no navegador. Sons sintetizados na hora (nenhum arquivo): tilintar de cristal quando um cristal do HUD acende (uma nota por seção), "blip" baixinho no hover/clique de botões, sopro no portal, moeda na tela arcade e um zumbido grave quando o mouse entra no topo escuro (lanterna) ou no House of Photh. O áudio só é criado depois de um clique/tecla da pessoa. | `sound: false` (o botão some) |
+| Hover dos jogos | Só com mouse: Blox Survival = cubos voxel que sobem e se empilham; Mystic Slime Defense = gotas de slime roxas/verdes que escorrem e bolhas; House of Photh = brasas + tela VHS (scanlines, ruído e faixa de tracking); The God of Small Things = pixels 1-bit; Big Stack = blocos que deslizam e empilham; Capivaras = ondas na lagoa e folhas caindo; A Lenda do Cristal = brilhos. Cada efeito pausa quando o card sai da tela. | `gameFx: false` (os da fase 2 ficam em `cardFx`) |
+| Cursor por seção | O acompanhante do cursor (o cursor normal continua) muda de forma e cor em cada seção, com uma troca de 150 ms: Hero = cristal com rastro; Sobre = anel discreto; Galeria = lupa com "Ampliar"; Jogos = mira com "Jogar" (trava em cima dos botões); Assets = cubo com "Ver na Fab"; Formação = selo; Contato = envelope. Só mouse. | `sectionCursor: false` (fica sempre o cristal) |
+
+### Mudar textos e sons
+- **Textos da tela arcade**: objeto `ARCADE` logo abaixo do `CONFIG` no `public/main.js`. A fonte pixel só tem as letras A-Z (sem J, K, Q, W, X, Y), É, os números 0-3, espaço, `/`, `-` e `·`. Para outra letra, acrescente uma linha no objeto `F` dentro de `arcadeIntro()` (7 números, um por linha do caractere; cada número é uma linha de 5 pixels em binário, por exemplo `31` = `11111`).
+- **Sons**: objeto `SOUNDS` dentro de `SND` no `public/main.js`. Cada som é uma receita curta (tipo de onda, frequência em Hz, duração em segundos, volume). O volume geral é `VOL` (0,14). O intervalo mínimo entre repetições de cada som fica em `GAP`.
+- **Cores e formas do cursor**: `CUR` (cores) e `SECTION_SHAPE` (seção -> forma) no começo do `public/fx.js`.
+- **Tempo do portal**: `PORTAL` no `public/fx.js` (`open`, `hold`, `reveal` em ms).
+
+### Acessibilidade
+- A tela arcade é `aria-hidden`, não recebe foco e sai do DOM ao terminar; Tab e o teclado continuam funcionando por baixo. O texto pisca a 1 Hz (bem abaixo do limite de 3 por segundo).
+- O botão Som tem `aria-pressed` e nome "Som". Nada toca sozinho.
+- O portal leva o foco para a seção de destino, como um link normal.

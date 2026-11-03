@@ -26,9 +26,11 @@ export function start(c) {
   if (C.smooth && fine) startLenis();
   if (C.scrollFx) { headings(); parallaxMedia(); marquee(); dock(); }
   if (C.cardFx) { gallery(fine); if (fine) { tilt(); cardVfx(); } }
+  if (C.gameFx && fine) gameFx();
   if (C.cursor && fine) cursor();
   hudBursts();
-  if (C.wipe) anchors();
+  if (C.portal) portal();
+  else if (C.wipe) anchors();
 }
 
 export function stop() {
@@ -38,6 +40,11 @@ export function stop() {
   if (lenis) { lenis.destroy(); lenis = null; }
   overlay.destroy();
 }
+
+// cor do acompanhante do cursor em cada forma/seção (o rótulo usa a mesma cor)
+const CUR = { crystal: "#8dffe6", ring: "#d9dde4", loupe: "#ffe3b8", cross: "#c6b5ff", cube: "#2cf5c0", seal: "#ffd27a", mail: "#8dffe6" };
+// seção (id) -> forma
+const SECTION_SHAPE = { hero: "crystal", sobre: "ring", galeria: "loupe", jogos: "cross", assets: "cube", certificados: "seal", contato: "mail" };
 
 /* ------------------------------------------------------------
    Camada 2D de partículas (uma só, por cima da página, sem eventos)
@@ -65,9 +72,16 @@ const overlay = (() => {
       p.t += dt;
       if (p.t >= p.life) { P.splice(i, 1); continue; }
       const k = p.t / p.life;
-      p.vx *= Math.exp(-dt * p.drag); p.vy *= Math.exp(-dt * p.drag);
-      p.vy += p.grav * dt;
-      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      if (p.tx !== undefined) {
+        // vai até um alvo (voxels que se montam, blocos da pilha) e fica lá até apagar
+        const e = easeOut(Math.min(1, p.t / p.travel));
+        p.x = p.sx + (p.tx - p.sx) * e; p.y = p.sy + (p.ty - p.sy) * e; p.rot = p.rot0 * (1 - e);
+      } else {
+        if (p.kind === "drip" && p.t < p.hang) p.vy = 0; // gota de slime "pendurada" antes de escorrer
+        p.vx *= Math.exp(-dt * p.drag); p.vy *= Math.exp(-dt * p.drag);
+        p.vy += (p.kind === "drip" && p.t < p.hang ? 0 : p.grav) * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      }
       draw(p, k, now);
     }
     if (cursor && cursor.on) drawCursor(dt);
@@ -103,6 +117,58 @@ const overlay = (() => {
       g.globalCompositeOperation = "source-over";
       const onPx = Math.sin(p.t * 14 + p.seed * 7) > -0.2 && k < 0.9;
       if (onPx) { g.globalAlpha = 1; g.fillStyle = "#f4f4f4"; g.fillRect(Math.round(p.x / 3) * 3, Math.round(p.y / 3) * 3, p.size, p.size); }
+    } else if (p.kind === "voxel") {
+      // cubinho isométrico de 3 faces
+      g.globalCompositeOperation = "source-over";
+      const s = p.size, h = s * 0.5, w = s * 0.866, fade = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1;
+      g.save(); g.translate(Math.round(p.x), Math.round(p.y)); g.rotate(p.rot); g.globalAlpha = Math.min(1, p.t * 6) * fade;
+      const face = (c, pts) => { g.fillStyle = c; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill(); };
+      face(p.c[0], [[0, -h], [w, -h / 2], [0, 0], [-w, -h / 2]]);
+      face(p.c[1], [[-w, -h / 2], [0, 0], [0, h], [-w, h / 2]]);
+      face(p.c[2], [[w, -h / 2], [0, 0], [0, h], [w, h / 2]]);
+      g.restore();
+    } else if (p.kind === "drip") {
+      // gota de slime: cresce pendurada, depois escorre esticando
+      g.globalCompositeOperation = "source-over";
+      const grow = Math.min(1, p.t / p.hang), r = p.size * (0.35 + 0.65 * grow);
+      const tail = p.t < p.hang ? r * (0.6 + grow) : r + Math.min(26, p.vy * 0.08);
+      g.globalAlpha = 0.9 * (k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1);
+      g.fillStyle = p.color;
+      g.beginPath();
+      g.moveTo(p.x, p.y - tail);
+      g.quadraticCurveTo(p.x + r * 0.95, p.y - r * 0.4, p.x + r, p.y);
+      g.arc(p.x, p.y, r, 0, Math.PI);
+      g.quadraticCurveTo(p.x - r * 0.95, p.y - r * 0.4, p.x, p.y - tail);
+      g.fill();
+      if (p.t < p.hang) { g.fillRect(p.x - r * 0.35, p.y0, r * 0.7, p.y - p.y0); }
+      g.fillStyle = "rgba(255,255,255,0.55)"; g.fillRect(Math.round(p.x - r * 0.45), Math.round(p.y - r * 0.4), Math.max(1, r * 0.3), Math.max(1, r * 0.3));
+    } else if (p.kind === "bubble") {
+      g.globalCompositeOperation = "lighter";
+      g.globalAlpha = 0.7 * (1 - k);
+      g.strokeStyle = p.color; g.lineWidth = 1.2;
+      g.beginPath(); g.arc(p.x + Math.sin(p.t * 5 + p.seed * 6) * 3, p.y, p.size * (0.6 + k * 0.6), 0, Math.PI * 2); g.stroke();
+    } else if (p.kind === "block") {
+      // bloco da pilha (Big Stack): desliza de lado e encaixa
+      g.globalCompositeOperation = "source-over";
+      g.globalAlpha = p.a * (k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1);
+      g.fillStyle = p.color; g.fillRect(Math.round(p.x - p.w / 2), Math.round(p.y), Math.round(p.w), p.size);
+      g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(Math.round(p.x - p.w / 2), Math.round(p.y + p.size - 2), Math.round(p.w), 2);
+    } else if (p.kind === "ripple") {
+      // onda na lagoa (Capivaras): elipse achatada que abre e some
+      // traço escuro por baixo + claro por cima: lê bem sobre as capturas coloridas
+      g.globalCompositeOperation = "source-over";
+      const e = easeOut(k), rx = 3 + e * p.size;
+      g.globalAlpha = 0.9 * (1 - e);
+      g.lineWidth = 3; g.strokeStyle = "rgba(4,18,13,0.45)";
+      g.beginPath(); g.ellipse(p.x, p.y, rx, rx * 0.32, 0, 0, Math.PI * 2); g.stroke();
+      g.lineWidth = 1.4; g.strokeStyle = p.color; g.stroke();
+      if (e > 0.25) { g.globalAlpha = 0.6 * (1 - e); g.beginPath(); g.ellipse(p.x, p.y, rx * 0.55, rx * 0.55 * 0.32, 0, 0, Math.PI * 2); g.stroke(); }
+    } else if (p.kind === "leaf") {
+      g.globalCompositeOperation = "source-over";
+      g.save(); g.translate(p.x + Math.sin(p.t * 2.2 + p.seed * 9) * 10, p.y); g.rotate(p.rot + Math.sin(p.t * 2.2) * 0.6);
+      g.globalAlpha = 0.85 * (k > 0.7 ? 1 - (k - 0.7) / 0.3 : Math.min(1, p.t * 3));
+      g.fillStyle = p.color; g.beginPath(); g.ellipse(0, 0, p.size, p.size * 0.42, 0, 0, Math.PI * 2); g.fill();
+      g.restore();
     } else if (p.kind === "ring") {
       g.globalCompositeOperation = "lighter";
       const e = easeOut(k);
@@ -112,16 +178,75 @@ const overlay = (() => {
     }
     g.globalAlpha = 1;
   };
+  // formas do acompanhante do cursor (fase 3: uma por seção). x, y = centro; s = escala; a = opacidade
+  const line = (pts, close) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); if (close) g.closePath(); g.stroke(); };
+  const SHAPES = {
+    crystal(x, y, s, a, c) {
+      const r = (c.hot ? 9 : 6) * s;
+      star(x, y, r, c.rot, CUR.crystal, 0.95 * a);
+      star(x, y, r * 0.45, -c.rot, "#ffffff", 0.9 * a);
+    },
+    ring(x, y, s, a, c) { // Sobre: discreto, quase o cursor normal
+      g.globalAlpha = 0.8 * a; g.strokeStyle = CUR.ring; g.lineWidth = 1.2;
+      g.beginPath(); g.arc(x, y, (c.hot ? 6 : 4.5) * s, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = CUR.ring; g.fillRect(x - 0.75, y - 0.75, 1.5, 1.5);
+    },
+    loupe(x, y, s, a, c) { // Galeria: lupa
+      const r = (c.hot ? 6 : 5) * s;
+      g.globalAlpha = a; g.strokeStyle = CUR.loupe; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+      line([[x + r * 0.72, y + r * 0.72], [x + r * 1.7, y + r * 1.7]]);
+      if (c.hot) { line([[x - r * 0.45, y], [x + r * 0.45, y]]); line([[x, y - r * 0.45], [x, y + r * 0.45]]); }
+    },
+    cross(x, y, s, a, c) { // Jogos: mira que "trava" em cima de botão
+      const r = (c.hot ? 4 : 6) * s, t = 3.2 * s;
+      g.globalAlpha = a; g.strokeStyle = CUR.cross; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+      line([[x - r - t, y], [x - r + 1.5, y]]); line([[x + r - 1.5, y], [x + r + t, y]]);
+      line([[x, y - r - t], [x, y - r + 1.5]]); line([[x, y + r - 1.5], [x, y + r + t]]);
+      g.fillStyle = CUR.cross; g.fillRect(x - 1, y - 1, 2, 2);
+    },
+    cube(x, y, s, a, c) { // Assets: cubo isométrico
+      const h = (c.hot ? 7 : 5.5) * s, w = h * 0.866;
+      g.globalAlpha = 0.22 * a; g.fillStyle = CUR.cube;
+      g.beginPath(); g.moveTo(x, y - h); g.lineTo(x + w, y - h / 2); g.lineTo(x, y); g.lineTo(x - w, y - h / 2); g.closePath(); g.fill();
+      g.globalAlpha = a; g.strokeStyle = CUR.cube; g.lineWidth = 1.3;
+      line([[x, y - h], [x + w, y - h / 2], [x + w, y + h / 2], [x, y + h], [x - w, y + h / 2], [x - w, y - h / 2]], true);
+      line([[x - w, y - h / 2], [x, y], [x + w, y - h / 2]]); line([[x, y], [x, y + h]]);
+    },
+    seal(x, y, s, a, c) { // Formação: selo de 8 pontas girando devagar
+      const R = (c.hot ? 7.5 : 6) * s, r = R * 0.72;
+      g.globalAlpha = a; g.strokeStyle = CUR.seal; g.lineWidth = 1.3;
+      const pts = [];
+      for (let i = 0; i < 16; i++) { const ang = c.rot * 0.5 + (i / 16) * Math.PI * 2, rr = i % 2 ? r : R; pts.push([x + Math.cos(ang) * rr, y + Math.sin(ang) * rr]); }
+      line(pts, true);
+      g.fillStyle = CUR.seal; g.beginPath(); g.arc(x, y, 1.6 * s, 0, Math.PI * 2); g.fill();
+    },
+    mail(x, y, s, a, c) { // Contato: envelope (a aba abre em cima de botão)
+      const w = 7 * s, h = 5 * s;
+      g.globalAlpha = a; g.strokeStyle = CUR.mail; g.lineWidth = 1.3;
+      g.strokeRect(x - w, y - h, w * 2, h * 2);
+      line(c.hot ? [[x - w, y - h], [x, y - h * 2.1], [x + w, y - h]] : [[x - w, y - h], [x, y + h * 0.15], [x + w, y - h]]);
+    },
+  };
   const drawCursor = (dt) => {
     const c = cursor;
     const k = 1 - Math.exp(-dt * 22);
     c.gx += (c.x - c.gx) * k; c.gy += (c.y - c.gy) * k;
     c.rot += dt * 1.6;
-    g.globalCompositeOperation = "lighter";
-    const r = c.hot ? 9 : 6;
-    star(c.gx + 13, c.gy + 15, r, c.rot, "#8dffe6", 0.95);
-    star(c.gx + 13, c.gy + 15, r * 0.45, -c.rot, "#ffffff", 0.9);
-    c.moving = Math.abs(c.x - c.gx) + Math.abs(c.y - c.gy) > 0.3;
+    // troca de forma: a antiga encolhe e some, a nova cresce (150 ms)
+    c.m = Math.min(1, c.m + dt / 0.15);
+    const e = easeOut(c.m), x = c.gx + 13, y = c.gy + 15;
+    // o cristal soma luz; as outras formas ganham um halo escuro para ler bem sobre botões claros
+    const drawShape = (name, sc, al) => {
+      if (name === "crystal") { g.globalCompositeOperation = "lighter"; g.shadowBlur = 0; }
+      else { g.globalCompositeOperation = "source-over"; g.shadowColor = "rgba(4,8,12,0.75)"; g.shadowBlur = 3; }
+      (SHAPES[name] || SHAPES.crystal)(x, y, sc, al, c);
+    };
+    if (c.m < 1 && c.from && SHAPES[c.from]) drawShape(c.from, 1 - 0.45 * e, 1 - e);
+    drawShape(c.shape, 0.55 + 0.45 * e, e);
+    g.shadowBlur = 0; g.globalAlpha = 1;
+    c.moving = Math.abs(c.x - c.gx) + Math.abs(c.y - c.gy) > 0.3 || c.m < 1;
     g.globalCompositeOperation = "source-over";
   };
   return {
@@ -148,6 +273,7 @@ const overlay = (() => {
       P.push({
         kind, x, y, vx: o.vx || 0, vy: o.vy || 0, life: o.life || 0.6, t: 0, size: o.size || 3, rot: o.rot || 0, vr: o.vr || 0,
         drag: o.drag ?? 2.5, grav: o.grav || 0, color: o.color || "#8dffe6", a: o.a ?? 1, seed: Math.random(),
+        ...(o.extra || {}),
       });
       kick();
     },
@@ -425,18 +551,117 @@ function cardVfx() {
 }
 
 /* ------------------------------------------------------------
+   Fase 3: hover com identidade própria em cada jogo (só mouse).
+   Cada efeito só existe enquanto o mouse está em cima E o card está na tela.
+   ------------------------------------------------------------ */
+const VOX = [["#8dffe6", "#2cf5c0", "#12866a"], ["#d8dce3", "#9aa1ac", "#5b616b"], ["#c6b5ff", "#8b5cf6", "#4f2fa8"]];
+function gameFx() {
+  const q = (s) => document.querySelector(s);
+  const game = (re) => [...document.querySelectorAll(".game")].find((g) => re.test(g.textContent));
+  const defs = [];
+  // o Mystic Slime perde a coluna de imagens se a API do Roblox falhar: aí as gotas escorrem do card inteiro
+  const blox = q("#roblox .hero-shot"), slime = q('[data-place="70698901839021"] .hero-shot') || q('[data-place="70698901839021"]'), house = q("#unreal");
+  const stack = game(/Big Stack/), capi = game(/Capivaras/);
+  if (blox) defs.push({ el: blox, rate: 9, make: voxels });
+  if (slime) defs.push({ el: slime, rate: 7, make: goo });
+  if (stack) defs.push({ el: stack.querySelector(".shots") || stack, rate: 2.6, make: pile });
+  if (capi) defs.push({ el: capi.querySelector(".shots") || capi, rate: 4, make: pond });
+  if (house) {
+    house.classList.add("fx-vhs");
+    const media = house.querySelector(".p-media");
+    if (media) on(media, "pointerenter", (e) => { if (e.pointerType === "mouse") ctx.SND && ctx.SND.play("hum"); });
+    cleanups.push(() => house.classList.remove("fx-vhs"));
+  }
+  defs.forEach((d) => {
+    let em = null, visible = true;
+    const leave = () => { if (em) overlay.removeEmitter(em); em = null; };
+    const enter = (e) => {
+      if (e.pointerType !== "mouse" || em || !visible) return;
+      let r = d.el.getBoundingClientRect(), acc = 0, lastR = performance.now();
+      const st = d.st || (d.st = { n: 0, cols: [] }); // a pilha continua se o hover "piscar" com a inclinação do card
+      em = {
+        tick(dt, now) {
+          if (now - lastR > 200) { r = d.el.getBoundingClientRect(); lastR = now; }
+          acc += dt * d.rate;
+          while (acc >= 1) { acc -= 1; d.make(r, st); }
+        },
+      };
+      overlay.addEmitter(em);
+    };
+    on(d.el, "pointerenter", enter);
+    on(d.el, "pointerleave", leave);
+    const io = new IntersectionObserver(([en]) => { visible = en.isIntersecting; if (!visible) leave(); });
+    io.observe(d.el);
+    cleanups.push(() => { io.disconnect(); leave(); });
+  });
+}
+// Blox Survival: cubos voxel sobem e se encaixam em pilhas na base da imagem
+function voxels(r, st) {
+  const size = Math.max(10, Math.min(16, r.width / 34)), w = size * 0.866 * 2;
+  const ncol = Math.max(4, Math.floor((r.width * 0.8) / w));
+  if (!st.cols.length) st.cols = new Array(ncol).fill(0);
+  const c = Math.floor(Math.random() * ncol);
+  if (st.cols[c] >= 3) st.cols[c] = 0;
+  const h = st.cols[c]++;
+  const tx = r.left + r.width * 0.1 + (c + 0.5) * w + (h % 2) * 0.5, ty = r.bottom - size * 0.8 - h * size;
+  const sx = tx + (Math.random() - 0.5) * 60, sy = r.bottom + 24 + Math.random() * 30;
+  overlay.emit("voxel", sx, sy, { life: 1.7, size, drag: 0, extra: { sx, sy, tx, ty, travel: 0.55 + Math.random() * 0.2, rot0: (Math.random() - 0.5) * 1.6, c: VOX[Math.random() < 0.6 ? 0 : Math.random() < 0.5 ? 1 : 2] } });
+}
+// Mystic Slime Defense: gotas roxas/verdes penduradas na borda de cima que escorrem, e bolhas
+function goo(r, st) {
+  st.n++;
+  if (st.n % 3 === 0) {
+    overlay.emit("bubble", r.left + Math.random() * r.width, r.bottom - 6, { vy: -26 - Math.random() * 20, life: 1.3, size: 2 + Math.random() * 3, drag: 0.2, color: Math.random() < 0.5 ? "#a98bff" : "#8dffe6" });
+    return;
+  }
+  const x = r.left + 10 + Math.random() * (r.width - 20), y = r.top + 2;
+  overlay.emit("drip", x, y, { life: 1.6 + Math.random() * 0.5, size: 4 + Math.random() * 4, grav: 190, drag: 0.4, color: Math.random() < 0.6 ? "#8b5cf6" : "#2cf5c0", extra: { hang: 0.4 + Math.random() * 0.35, y0: y } });
+}
+// Big Stack: blocos deslizam de lado e empilham (com um leve desalinhamento, como no jogo)
+const PILE = ["#2cf5c0", "#8b5cf6", "#eceef2", "#ffb35c"];
+function pile(r, st) {
+  const bh = 7, max = Math.max(4, Math.min(9, Math.floor((r.height - 16) / (bh + 2))));
+  if (st.n >= max) st.n = 0;
+  const n = st.n++, w = r.width * (0.22 - n * 0.008), fromLeft = n % 2 === 0;
+  const tx = r.left + r.width / 2 + (Math.random() - 0.5) * 10, ty = r.bottom - 8 - (n + 1) * (bh + 2);
+  const sx = fromLeft ? r.left - w * 0.2 : r.right + w * 0.2;
+  overlay.emit("block", sx, ty, { life: 2.2, size: bh, drag: 0, a: 0.85, color: PILE[n % PILE.length], extra: { w, sx, sy: ty, tx, ty, travel: 0.26, rot0: 0 } });
+}
+// Capivaras: ondas na lagoa e folhas caindo
+function pond(r, st) {
+  st.n++;
+  if (st.n % 3 === 0) {
+    overlay.emit("leaf", r.left + Math.random() * r.width, r.top - 4, { vy: 26 + Math.random() * 14, life: 2.4, size: 6 + Math.random() * 3, drag: 0, rot: Math.random() * 3, color: Math.random() < 0.5 ? "#5fcf7f" : "#2cf5c0" });
+    return;
+  }
+  overlay.emit("ripple", r.left + r.width * (0.1 + Math.random() * 0.8), r.top + r.height * (0.55 + Math.random() * 0.4), { life: 1.4, size: 24 + Math.random() * 16, drag: 0, color: "#eafffb" });
+}
+
+/* ------------------------------------------------------------
    Cursor: brilho de cristal com rastro, rótulos de contexto e botões magnéticos.
    O cursor nativo continua normal; isto é só um acompanhante.
    ------------------------------------------------------------ */
 const LABELS = [
   ["#stage-view", "Girar"],
-  ["a.btn", (el) => (/Jogar/.test(el.textContent) ? "Jogar" : null)],
-  [".art", "Ver"],
+  ["a.btn", (el) => (/Jogar/.test(el.textContent) || (el.closest("#jogos") && el.classList.contains("primary")) ? "Jogar" : null)],
+  [".art", "Ampliar"],
   [".cert", "Ampliar"],
   [".asset", "Ver na Fab"],
 ];
 function cursor() {
-  const c = { x: -100, y: -100, gx: -100, gy: -100, rot: 0, on: false, moving: false, hot: false };
+  const C = ctx.CONFIG;
+  const c = { x: -100, y: -100, gx: -100, gy: -100, rot: 0, on: false, moving: false, hot: false, shape: "crystal", from: null, m: 1 };
+  const setShape = (sh) => {
+    if (!C.sectionCursor || sh === c.shape) return;
+    c.from = c.shape; c.shape = sh; c.m = 0;
+    label.style.setProperty("--lc", CUR[sh] || CUR.crystal);
+    overlay.kick();
+  };
+  const shapeAt = (t) => {
+    const sec = t && t.closest && t.closest("main > section[id], footer");
+    if (!sec) return null;
+    return SECTION_SHAPE[sec.id] || "ring";
+  };
   overlay.setCursor(c);
   const label = document.createElement("div");
   label.className = "fx-label";
@@ -456,7 +681,7 @@ function cursor() {
     c.x = e.clientX; c.y = e.clientY; c.on = true; c.moving = true;
     if (c.gx < -50) { c.gx = c.x; c.gy = c.y; }
     const d = Math.hypot(c.x - lastEmit.x, c.y - lastEmit.y);
-    if (d > 18) {
+    if (d > 18 && (c.shape === "crystal" || !C.sectionCursor)) {
       lastEmit = { x: c.x, y: c.y };
       overlay.emit("glint", c.x + 13, c.y + 15, { life: 0.42, size: 2.6 + Math.random() * 1.6, rot: Math.random() * 3, vr: 3, vx: (Math.random() - 0.5) * 20, vy: 12 + Math.random() * 16, drag: 3, a: 0.7 });
     }
@@ -464,6 +689,8 @@ function cursor() {
     overlay.kick();
   };
   const onOver = (e) => {
+    const sh = shapeAt(e.target);
+    if (sh) setShape(sh);
     const txt = findLabel(e.target);
     c.hot = !!(e.target.closest && e.target.closest("a, button, [tabindex]"));
     if (txt) { label.textContent = txt; labelEl = e.target; moveLabel(); label.classList.add("on"); }
@@ -474,6 +701,12 @@ function cursor() {
   on(document, "pointerover", onOver, { passive: true });
   on(document.documentElement, "pointerleave", hide);
   on(window, "blur", hide);
+  // rolando sem mexer o mouse: a seção embaixo do cursor muda, então confere de tempos em tempos
+  let sTimer = 0;
+  on(window, "scroll", () => {
+    if (sTimer || !c.on || !C.sectionCursor) return;
+    sTimer = setTimeout(() => { sTimer = 0; const el = document.elementFromPoint(c.x, c.y); const sh = shapeAt(el); if (sh) setShape(sh); }, 120);
+  }, { passive: true });
 
   // botões magnéticos (hero, contato, Contratar)
   const mags = [...document.querySelectorAll(".hero-actions .btn, .contact .btn, .nav-cta")];
@@ -557,4 +790,148 @@ function anchors() {
   };
   on(document, "click", onClick);
   cleanups.push(() => wipe.classList.remove("cover", "uncover"));
+}
+
+/* ------------------------------------------------------------
+   Fase 3: transição "portal" (menu, HUD, botões internos).
+   Um anel 1-bit (pontilhado Bayer, verde e roxo) abre a partir do clique ou do cristal do HUD,
+   cobre a tela com um vórtice escuro, a página salta para a seção e ela aparece "dentro" do portal,
+   que abre até sumir. Desenhado em baixa resolução (1 pixel = 4+ px na tela) num canvas 2D.
+   Mantém o endereço (#secao), o histórico, o foco e o aria-current. Qualquer tecla ou clique pula.
+   ------------------------------------------------------------ */
+const PORTAL = { open: 300, hold: 70, reveal: 380 }; // ~750 ms no total
+function portal() {
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+  // cores em ABGR (ImageData little-endian)
+  const VOID = 0xff070504, ARM = 0xff1d2c0c, GREEN = 0xffc0f52c, PURPLE = 0xfff65c8b, CLEAR = 0;
+  let cv = null, g = null, img = null, buf = null, cw = 0, ch = 0, cell = 4, raf = 0, run = null;
+  const offset = () => parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 84;
+
+  const setup = () => {
+    cell = Math.max(4, Math.round(innerWidth / 360));
+    cw = Math.ceil(innerWidth / cell); ch = Math.ceil(innerHeight / cell);
+    if (!cv) {
+      cv = document.createElement("canvas");
+      cv.className = "fx-portal";
+      cv.setAttribute("aria-hidden", "true");
+      g = cv.getContext("2d");
+    }
+    cv.width = cw; cv.height = ch;
+    cv.style.width = cw * cell + "px"; cv.style.height = ch * cell + "px";
+    img = g.createImageData(cw, ch);
+    buf = new Uint32Array(img.data.buffer);
+  };
+  // um quadro do portal. mode "open": o vazio cresce a partir de (ox, oy) com raio R.
+  // mode "reveal": um buraco de raio R a partir de (ox, oy) mostra a página por baixo.
+  const paint = (mode, ox, oy, R, time, rimA) => {
+    const BAND = 9, spin = time * 0.008;
+    for (let y = 0; y < ch; y++) {
+      const dy = y - oy, row = y * cw, by = (y & 3) * 4;
+      for (let x = 0; x < cw; x++) {
+        const dx = x - ox, d = Math.sqrt(dx * dx + dy * dy);
+        const th = BAYER[by + (x & 3)];
+        // braços do vórtice: espiral que gira (só muda a cor do vazio)
+        const sw = Math.sin(Math.atan2(dy, dx) * 5 + d * 0.11 - spin);
+        let v = mode === "open" ? (R - d) / BAND : (d - R) / BAND;
+        let c = CLEAR;
+        if (v > th) c = v > 1.6 && sw > 0.86 && th < 0.34 ? ARM : VOID;
+        else if (v > -0.45) {
+          // anel: pontilhado que mistura verde e roxo seguindo a espiral
+          const e = (1 - Math.abs(v + 0.1) / 0.45) * rimA;
+          if (e > th) c = sw > -0.1 ? GREEN : PURPLE;
+        }
+        buf[row + x] = c;
+      }
+    }
+    g.putImageData(img, 0, 0);
+  };
+  const far = (x, y) => Math.max(Math.hypot(x, y), Math.hypot(cw - x, y), Math.hypot(x, ch - y), Math.hypot(cw - x, ch - y));
+
+  const jumpTo = (id, target) => {
+    const jump = () => {
+      const top = id === "#top" ? 0 : target.getBoundingClientRect().top + scrollY - offset();
+      if (lenis) lenis.scrollTo(top, { immediate: true, force: true });
+      else window.scrollTo({ top, behavior: "instant" });
+    };
+    jump();
+    // imagens "lazy" acima do destino podem carregar depois do salto e empurrar a página:
+    // por ~1,2 s, mantém a seção no lugar (a menos que a pessoa role por conta própria)
+    let userMoved = false;
+    const evs = ["wheel", "touchstart", "keydown", "pointerdown"];
+    const mark = () => { userMoved = true; };
+    setTimeout(() => evs.forEach((t) => addEventListener(t, mark, { once: true, passive: true })), 0);
+    const until = performance.now() + 1200;
+    const hold = () => {
+      if (userMoved || performance.now() > until) { evs.forEach((t) => removeEventListener(t, mark)); return; }
+      if (id !== "#top" && Math.abs(target.getBoundingClientRect().top - offset()) > 2) jump();
+      requestAnimationFrame(hold);
+    };
+    requestAnimationFrame(hold);
+    if (location.hash !== id) history.pushState(null, "", id);
+    // leva o foco junto, como um link de âncora normal faria
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target.focus({ preventScroll: true });
+  };
+
+  const end = () => {
+    if (!run) return;
+    cancelAnimationFrame(raf); raf = 0;
+    if (!run.jumped) { run.jumped = true; jumpTo(run.id, run.target); }
+    removeEventListener("keydown", skip, true);
+    removeEventListener("pointerdown", skip, true);
+    if (cv) cv.remove();
+    run = null;
+  };
+  function skip() { end(); }
+
+  const step = (now) => {
+    raf = 0;
+    if (!run) return;
+    const t = now - run.t0;
+    const A = PORTAL.open, B = A + PORTAL.hold, Z = B + PORTAL.reveal;
+    if (t < A) {
+      const p = t / A, e = p * p * (1.6 - 0.6 * p); // começa devagar perto do clique e acelera
+      paint("open", run.ox, run.oy, 2 + e * (run.far1 + 12), t, 1);
+    } else if (t < B) {
+      if (!run.jumped) { run.jumped = true; jumpTo(run.id, run.target); }
+      paint("open", run.ox, run.oy, run.far1 + 14, t, 1);
+    } else if (t < Z) {
+      if (!run.jumped) { run.jumped = true; jumpTo(run.id, run.target); }
+      const q = (t - B) / PORTAL.reveal, e = 1 - Math.pow(1 - q, 3);
+      paint("reveal", run.cx, run.cy, -10 + e * (run.far2 + 22), t, 1 - q * 0.5);
+    } else { end(); return; }
+    raf = requestAnimationFrame(step);
+  };
+
+  const onClick = (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    const id = a.getAttribute("href");
+    const target = id.length > 1 && document.querySelector(id);
+    if (!target) return;
+    e.preventDefault();
+    if (run) end();
+    setup();
+    // origem: o ponto do clique; pelo teclado (sem coordenadas), o cristal do HUD da seção ou o próprio link
+    let ox, oy;
+    const gem = document.querySelector(`#xp a[href="${id}"]`);
+    const fromHud = a.closest("#xp");
+    const gr = gem && !gem.closest("[hidden]") && gem.getBoundingClientRect();
+    if (fromHud && gr && gr.width) { ox = gr.left + gr.width / 2; oy = gr.top + gr.height / 2; }
+    else if (e.detail > 0 && (e.clientX || e.clientY)) { ox = e.clientX; oy = e.clientY; }
+    else if (gr && gr.width) { ox = gr.left + gr.width / 2; oy = gr.top + gr.height / 2; }
+    else { const r = a.getBoundingClientRect(); ox = r.left + r.width / 2; oy = r.top + r.height / 2; }
+    ox /= cell; oy /= cell;
+    const cx = cw / 2, cy = ch * 0.42;
+    run = { id, target, t0: performance.now(), ox, oy, cx, cy, far1: far(ox, oy), far2: far(cx, cy), jumped: false };
+    document.body.appendChild(cv);
+    paint("open", ox, oy, 2, 0, 1);
+    if (ctx.SND) ctx.SND.play("portal");
+    // espera o clique atual terminar antes de ouvir "pular"
+    setTimeout(() => { if (run) { addEventListener("keydown", skip, true); addEventListener("pointerdown", skip, true); } }, 0);
+    raf = requestAnimationFrame(step);
+  };
+  on(document, "click", onClick);
+  cleanups.push(() => { end(); cv = null; });
 }

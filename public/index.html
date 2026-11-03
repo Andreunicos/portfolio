@@ -29,9 +29,10 @@
     try { q = new URLSearchParams(location.search).get("fx"); } catch (e) {}
     d.dataset.fx = q === "reduced" ? "reduced" : "full";
     d.dataset.fxWhy = q ? "url" : "default";
+    // abertura (tela arcade): só uma vez por sessão. Se o main.js não assumir, o CSS a tira sozinho em 2,4 s.
     if (d.dataset.fx === "full") {
-      try { if (!sessionStorage.getItem("intro")) { d.classList.add("intro"); sessionStorage.setItem("intro", "1"); } }
-      catch (e) { d.classList.add("intro"); }
+      try { if (!sessionStorage.getItem("intro")) { d.classList.add("arcade"); sessionStorage.setItem("intro", "1"); } }
+      catch (e) { d.classList.add("arcade"); }
     }
   })();
   </script>
@@ -53,6 +54,7 @@
       <li><a href="#contato">Contato</a></li>
     </ul>
     <div class="nav-tools">
+      <button class="snd-toggle" id="snd-toggle" type="button" aria-pressed="false" hidden><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path class="snd-w" d="M13 7.2a4 4 0 0 1 0 5.6M15.2 5a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path class="snd-x" d="m13.2 7.6 4.6 4.8m0-4.8-4.6 4.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="snd-txt">Som</span></button>
       <a class="btn small primary nav-cta" href="#contato">Contratar</a>
     </div>
     <button class="burger" id="burger" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><span></span></button>

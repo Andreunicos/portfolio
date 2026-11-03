@@ -16,10 +16,15 @@ let cleanups = [];
 let lenis = null;
 const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); cleanups.push(() => target.removeEventListener(type, fn, opts)); };
 
+// CSS da fase 3 usado só aqui (portal, tela VHS do House of Photh, cor dos rótulos do cursor)
+const CSS = `.fx-portal { position: fixed; left: 0; top: 0; z-index: 95; image-rendering: pixelated; pointer-events: auto; cursor: progress; } .fx-vhs .hero-shot { position: relative; } .fx-vhs .hero-shot::before, .fx-vhs .hero-shot::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity var(--t-med) var(--ease-out); } .fx-vhs .hero-shot::before { z-index: 2; mix-blend-mode: screen; background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.6 -.6'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 120px 120px; } .fx-vhs .hero-shot::after { z-index: 2; background: linear-gradient(180deg, transparent 0, rgba(220, 230, 255, 0.1) 46%, rgba(255, 255, 255, 0.18) 50%, transparent 56%) 0 -40% / 100% 30% no-repeat; } .fx-vhs:hover .hero-shot::before { opacity: 0.4; animation: vhs-noise 0.5s steps(1) infinite; } .fx-vhs:hover .hero-shot::after { opacity: 1; animation: vhs-track 2.8s linear infinite; } .fx-vhs .hero-shot img { transition: filter var(--t-med); } .fx-vhs:hover .hero-shot img { filter: saturate(0.7) contrast(1.12) brightness(0.92); animation: vhs-jitter 3.2s steps(1) infinite; } @keyframes vhs-noise { 0% { background-position: 0 0, 0 0; } 33% { background-position: 0 1px, -40px 22px; } 66% { background-position: 0 2px, 31px -17px; } } @keyframes vhs-track { from { background-position: 0 -40%; } to { background-position: 0 140%; } } @keyframes vhs-jitter { 0%, 100% { translate: 0 0; } 61% { translate: -2px 0; } 63% { translate: 1px 0; } 65% { translate: 0 0; } } .fx-label { background: var(--lc, var(--accent)); transition: opacity var(--t-fast), scale var(--t-fast) var(--ease-snap), background-color var(--t-fast); }`;
+let styleEl = null;
+
 export function start(c) {
   if (running) return;
   running = true;
   ctx = c;
+  if (!styleEl) { styleEl = document.createElement("style"); styleEl.textContent = CSS; document.head.appendChild(styleEl); }
   const C = ctx.CONFIG;
   const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
   overlay.init(fine);

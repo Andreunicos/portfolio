@@ -21,22 +21,15 @@
   <script type="importmap">
   {"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/","lenis":"./vendor/lenis/lenis.min.mjs"}}
   </script>
-  <!-- Modo de efeitos, decidido antes da primeira pintura: "full" ou "reduced".
-       Ordem: ?fx= na URL > escolha salva no botão Efeitos > sistema (movimento reduzido) / aparelho fraco. -->
+  <!-- Efeitos sempre ativos (modo "full"). Única exceção: ?fx=reduced na URL, só para testes. -->
   <script>
   (function () {
-    var d = document.documentElement, pref = "auto", q = null;
+    var d = document.documentElement, q = null;
     d.classList.add("js");
     try { q = new URLSearchParams(location.search).get("fx"); } catch (e) {}
-    if (q === "full" || q === "reduced") pref = q;
-    else { try { pref = localStorage.getItem("fx") || "auto"; } catch (e) {} }
-    var os = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var n = navigator, c = n.connection;
-    var low = (n.deviceMemory && n.deviceMemory <= 2) || (n.hardwareConcurrency && n.hardwareConcurrency <= 2) || (c && c.saveData);
-    var mode = pref === "full" || pref === "reduced" ? pref : (os || low ? "reduced" : "full");
-    d.dataset.fx = mode;
-    d.dataset.fxWhy = pref !== "auto" ? (q ? "url" : "user") : os ? "os" : low ? "device" : "default";
-    if (mode === "full") {
+    d.dataset.fx = q === "reduced" ? "reduced" : "full";
+    d.dataset.fxWhy = q ? "url" : "default";
+    if (d.dataset.fx === "full") {
       try { if (!sessionStorage.getItem("intro")) { d.classList.add("intro"); sessionStorage.setItem("intro", "1"); } }
       catch (e) { d.classList.add("intro"); }
     }
@@ -60,16 +53,7 @@
       <li><a href="#contato">Contato</a></li>
     </ul>
     <div class="nav-tools">
-      <button class="fx-toggle" id="fx-toggle" type="button" aria-pressed="true" aria-labelledby="fx-toggle-label" aria-describedby="fx-hint-text">
-        <span class="fx-switch" aria-hidden="true"><i></i></span>
-        <span id="fx-toggle-label">Efeitos</span><span class="fx-state" aria-hidden="true"></span>
-      </button>
       <a class="btn small primary nav-cta" href="#contato">Contratar</a>
-    </div>
-    <div class="fx-hint" id="fx-hint" hidden>
-      <p id="fx-hint-text">Efeitos reduzidos pelo seu sistema.</p>
-      <button type="button" class="fx-hint-on" id="fx-hint-on">Ativar efeitos completos</button>
-      <button type="button" class="fx-hint-x" id="fx-hint-x" aria-label="Fechar aviso">×</button>
     </div>
     <button class="burger" id="burger" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><span></span></button>
   </div>

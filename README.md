@@ -6,6 +6,7 @@ Site estático (HTML + CSS + JS) com uma função serverless que puxa as artes d
 public/            site (index.html, style.css, main.js, assets/)
 public/hero3d.js   modelo 3D do topo do site (three.js), carregado depois da página
 public/fx.js       efeitos do modo completo (rolagem suave, partículas, cursor, portal, hovers dos jogos), carregado depois da página
+public/fx3.js      som (WebAudio) e tela arcade "INSIRA A MOEDA", carregado logo depois do LCP, só no modo completo
 public/vendor/     three.js 0.180.0 e Lenis 1.3.27 hospedados no próprio site (licenças MIT em vendor/*/LICENSE)
 public/models/     coloque aqui o seu .glb
 api/artstation.js  função da Vercel: busca os projetos no ArtStation (cache de 1h)
@@ -130,10 +131,15 @@ Tudo aqui só existe no modo completo. Com `?fx=reduced` na URL ou sem JavaScrip
 | Cursor por seção | O acompanhante do cursor (o cursor normal continua) muda de forma e cor em cada seção, com uma troca de 150 ms: Hero = cristal com rastro; Sobre = anel discreto; Galeria = lupa com "Ampliar"; Jogos = mira com "Jogar" (trava em cima dos botões); Assets = cubo com "Ver na Fab"; Formação = selo; Contato = envelope. Só mouse. | `sectionCursor: false` (fica sempre o cristal) |
 
 ### Mudar textos e sons
-- **Textos da tela arcade**: objeto `ARCADE` logo abaixo do `CONFIG` no `public/main.js`. A fonte pixel só tem as letras A-Z (sem J, K, Q, W, X, Y), É, os números 0-3, espaço, `/`, `-` e `·`. Para outra letra, acrescente uma linha no objeto `F` dentro de `arcadeIntro()` (7 números, um por linha do caractere; cada número é uma linha de 5 pixels em binário, por exemplo `31` = `11111`).
-- **Sons**: objeto `SOUNDS` dentro de `SND` no `public/main.js`. Cada som é uma receita curta (tipo de onda, frequência em Hz, duração em segundos, volume). O volume geral é `VOL` (0,14). O intervalo mínimo entre repetições de cada som fica em `GAP`.
+- **Textos da tela arcade**: objeto `ARCADE` logo abaixo do `CONFIG` no `public/main.js`. A fonte pixel tem A-I, L-P, R-V, Z, É, os números 0-3, espaço, `/`, `-` e `·` (o resto vira espaço). Para outra letra, acrescente uma linha no objeto `F` dentro de `arcadeIntro()` no `public/fx3.js` (7 números, um por linha do caractere; cada número é uma linha de 5 pixels em binário, por exemplo `31` = `11111`).
+- **Sons**: objeto `SOUNDS` dentro de `SND` no `public/fx3.js`. Cada som é uma receita curta (tipo de onda, frequência em Hz, duração em segundos, volume). O volume geral é `VOL` (0,14). O intervalo mínimo entre repetições de cada som fica em `GAP`.
 - **Cores e formas do cursor**: `CUR` (cores) e `SECTION_SHAPE` (seção -> forma) no começo do `public/fx.js`.
 - **Tempo do portal**: `PORTAL` no `public/fx.js` (`open`, `hold`, `reveal` em ms).
+
+### Desempenho
+- A tela arcade não atrasa o LCP: o primeiro quadro escuro é só CSS (`html.arcade::after`), o `fx3.js` só é pedido depois que o pôster do cristal foi pintado, e o 3D e os efeitos (`hero3d.js`, `fx.js`) só começam quando a tela some (ficariam escondidos por baixo dela de qualquer jeito).
+- Nada novo vem de fora do site: os sons são sintetizados, a fonte pixel é desenhada no canvas.
+- Os efeitos dos jogos só rodam com o mouse em cima e o card na tela; o portal só desenha durante a transição.
 
 ### Acessibilidade
 - A tela arcade é `aria-hidden`, não recebe foco e sai do DOM ao terminar; Tab e o teclado continuam funcionando por baixo. O texto pisca a 1 Hz (bem abaixo do limite de 3 por segundo).

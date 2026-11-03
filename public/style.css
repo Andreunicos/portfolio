@@ -524,7 +524,7 @@ html.lenis { scroll-behavior: auto !important; }
 /* camada do primeiro quadro, antes do main.js rodar. Some sozinha em 2,4 s se o JS falhar. */
 html.arcade::after { content: ""; position: fixed; inset: 0; z-index: 200; background: var(--arcade-bg); pointer-events: none; animation: arcade-safe 1ms linear 2.4s forwards; }
 @keyframes arcade-safe { to { visibility: hidden; } }
-.arcade-screen { position: fixed; inset: 0; z-index: 200; background: #07080b; cursor: pointer; -webkit-mask-size: 12px; mask-size: 12px; -webkit-mask-repeat: repeat; mask-repeat: repeat; }
+.arcade-screen { position: fixed; inset: 0; z-index: 200; background: #07080b; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-mask-size: 12px; mask-size: 12px; -webkit-mask-repeat: repeat; mask-repeat: repeat; }
 .arcade-screen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .arcade-screen::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55)), repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.34) 0 1px, transparent 1px 3px); }
 .arcade-screen.out { pointer-events: none; animation: dissolve-in 360ms linear reverse both; }

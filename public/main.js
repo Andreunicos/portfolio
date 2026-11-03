@@ -368,10 +368,21 @@ const introPlayed = arcadeOn && (CONFIG.arcadeIntro || CONFIG.intro);
 if (FX.full && (CONFIG.sound || (arcadeOn && CONFIG.arcadeIntro))) {
   const arcade = arcadeOn && CONFIG.arcadeIntro;
   const fallback = () => { if (arcade) { root.classList.remove("arcade"); heroIntro(); } arcadeEnd(); };
-  // só pede o arquivo depois do primeiro quadro pintado: assim ele não disputa banda com o LCP (o pôster do cristal)
-  requestAnimationFrame(() => requestAnimationFrame(() => import("./fx3.js")
-    .then((m) => m.init({ CONFIG, ARCADE, FX, root, arcade, onReveal: heroIntro, arcadeEnd }))
-    .catch((err) => { console.warn("Som/abertura indisponíveis:", err); fallback(); })));
+  // só pede o arquivo depois que o maior elemento da tela (o pôster do cristal, o "LCP") foi pintado,
+  // para não disputar banda nem CPU com ele. Até lá, a camada do CSS (scanlines) cobre a tela.
+  let asked = false;
+  const go = () => {
+    if (asked) return;
+    asked = true;
+    import("./fx3.js")
+      .then((m) => m.init({ CONFIG, ARCADE, FX, root, arcade, onReveal: heroIntro, arcadeEnd }))
+      .catch((err) => { console.warn("Som/abertura indisponíveis:", err); fallback(); });
+  };
+  try {
+    const po = new PerformanceObserver(() => { po.disconnect(); setTimeout(go, 0); });
+    po.observe({ type: "largest-contentful-paint", buffered: true });
+  } catch (e) { /* navegador sem LCP: usa só o relógio */ }
+  setTimeout(go, 1000);
   if (arcade) setTimeout(arcadeEnd, 2600); // garantia: nada fica esperando a abertura para sempre
   else { if (arcadeOn) { root.classList.remove("arcade"); heroIntro(); } arcadeEnd(); }
 } else {

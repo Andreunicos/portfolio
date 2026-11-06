@@ -13,7 +13,7 @@ Portfólio com artes 3D, jogos publicados e assets à venda.
 - [Blox Survival](https://www.roblox.com/pt/games/124276279483504/Blox-Survival): sobrevivência com classes e habilidades (Roblox)
 - [Mystic Slime Defense](https://www.roblox.com/pt/games/70698901839021/Myst1c-Slime-Defense): tower defense (Roblox)
 - [House of Photh](https://milhoart.itch.io/house-of-photh): terror psicológico em Unreal Engine, feito em equipe (Themed Horror Game Jam #20: #7 geral e #3 em Horror entre 44 jogos)
-- [The God of Small Things](https://hunterzinho.itch.io/the-god-of-small-things): estratégia rogue-like em 1-bit (1-BIT JAM 15)
+- [The God of Small Things](https://hunterzinho.itch.io/the-god-of-small-things): estratégia rogue-like em 1-bit (1-BIT JAM 15: #13 geral entre 79 jogos, #12 em Som)
 - [Big Stack](https://play.google.com/store/apps/details?id=com.bighouse.bigstack), [Capivaras: Defesa da Lagoa](https://play.google.com/store/apps/details?id=com.bringmestudio.capivaras) e [A Lenda do Cristal](https://play.google.com/store/apps/details?id=com.bighouse.alendadocristal): jogos mobile (Google Play)
 
 ## Contato
